@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Đặt vé - Rex Cinemas</title>
+   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&family=Oswald:wght@300;400;500;700&display=swap" rel="stylesheet">
+   <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+   <header class="vue-navbar">
+      <div class="vue-nav-container">
+         <a href="/" class="vue-logo"
+            style="display:flex; flex-direction:row; align-items:flex-end; gap: 8px; text-decoration:none;">
+            <img src="img/logo.png" alt="Rex Cinemas">
+            <span
+               style="font-family: var(--mont); font-size: 15px; font-weight: 700; letter-spacing: 3px; color: #fff; margin-bottom: 5px; line-height: 0.5; text-transform: uppercase;">CINEMAS</span>
+         </a>
+         <nav class="vue-nav-links">
+            <a href="/">TRANG CHỦ</a>
+            <a href="/#now-showing-section">PHIM ĐANG CHIẾU</a>
+            <a href="/#coming-soon-section">SẮP CHIẾU</a>
+         </nav>
+         <div class="vue-nav-right">
+            <div class="nav-auth" id="nav-auth">
+               <a href="/" style="font-family:var(--oswald); letter-spacing:1px;">← QUAY LẠI</a>
+            </div>
+         </div>
+      </div>
+   </header>
+
+   <!-- Booking Progress Bar -->
+   <div class="booking-progress">
+      <div class="container">
+         <div class="progress-bar">
+            <div class="step active" data-step="1">
+               <span class="step-number">1</span>
+               <span class="step-label">Suất chiếu</span>
+            </div>
+            <div class="step" data-step="2">
+               <span class="step-number">2</span>
+               <span class="step-label">Chọn ghế</span>
+            </div>
+            <div class="step" data-step="3">
+               <span class="step-number">3</span>
+               <span class="step-label">Bắp nước</span>
+            </div>
+            <div class="step" data-step="4">
+               <span class="step-number">4</span>
+               <span class="step-label">Thanh toán</span>
+            </div>
+         </div>
+      </div>
+   </div>
+
+   <div id="toast-container"></div>
+
+   <main class="container booking-container">
+      <div class="booking-layout">
+         <div class="booking-main">
+
+            <!-- Step 1: Movie Details + Showtimes -->
+            <section id="step-1" class="booking-step active">
+               <div class="movie-detail-header">
+                  <img id="movie-poster" src="" alt="">
+                  <div class="movie-info-text">
+                     <h1 id="movie-title"></h1>
+                     <p id="movie-desc"></p>
+                     <span id="movie-meta" class="movie-meta-detail"></span>
+                     <div id="movie-crew" style="margin-top: 8px; font-family:var(--mont); font-size: 12px; color: #ddd; line-height: 1.6;"></div>
+                  </div>
+               </div>
+
+               <!-- Date filter tabs -->
+               <div class="showtime-date-tabs" id="showtime-date-tabs"></div>
+
+               <h2 class="section-title" style="border-top:none; padding-top:0;">Chọn suất chiếu</h2>
+               <div id="showtime-list" class="showtime-list"></div>
+
+               <div class="reviews-section">
+                  <h2 class="section-title">Đánh giá từ khán giả</h2>
+                  <div id="review-form-container"></div>
+                  <div id="review-list" class="review-list">
+                     <p class="summary-empty">Đang tải đánh giá...</p>
+                  </div>
+               </div>
+            </section>
+
+            <!-- Step 2: Seat map -->
+            <section id="step-2" class="booking-step">
+               <h2 class="section-title" style="border-top:none; padding-top:0;">Chọn ghế ngồi</h2>
+               <div class="screen"></div>
+               <div id="seat-map" class="seat-map"></div>
+               <div id="seat-selected-count" class="seat-selected-count">Nhấn vào ghế để chọn.</div>
+               <div class="seat-legend">
+                  <div class="legend-item"><span class="seat normal"></span> Thường</div>
+                  <div class="legend-item"><span class="seat vip"></span> VIP</div>
+                  <div class="legend-item"><span class="seat couple"></span> Đôi</div>
+                  <div class="legend-item"><span class="seat selected"></span> Đang chọn</div>
+                  <div class="legend-item"><span class="seat held"></span> Đang được chọn</div>
+                  <div class="legend-item"><span class="seat booked"></span> Đã bán</div>
+               </div>
+            </section>
+
+            <!-- Step 3: Snacks -->
+            <section id="step-3" class="booking-step">
+               <h2 class="section-title" style="border-top:none; padding-top:0;">Bắp nước & Combo</h2>
+               <p class="section-subtitle">Thêm đồ ăn vào đơn hàng (không bắt buộc)</p>
+               <div id="snack-list" class="snack-grid"></div>
+            </section>
+
+            <!-- Step 4: Payment -->
+            <section id="step-4" class="booking-step">
+               <h2 class="section-title" style="border-top:none; padding-top:0;">Xác nhận & Thanh toán</h2>
+               <div class="payment-methods">
+                  <h3>Phương thức thanh toán</h3>
+                  <label><input type="radio" name="payment" value="vietqr" checked> &nbsp;Chuyển khoản VietQR - VietinBank</label>
+                  <div class="payment-note">
+                     Quét mã QR để chuyển khoản vào STK <strong>101879989921</strong>. Nội dung chuyển khoản sẽ được tạo tự động theo đơn hàng.
+                  </div>
+               </div>
+               <div class="payment-security">
+                  Hiện tạm ngưng MoMo, VNPay và thẻ quốc tế. Hệ thống chỉ hỗ trợ thanh toán VietQR.
+               </div>
+            </section>
+
+         </div>
+
+         <!-- Sidebar -->
+         <aside class="booking-sidebar">
+            <div class="sidebar-card">
+               <h3 class="sidebar-title">ĐƠN HÀNG CỦA BẠN</h3>
+               <div id="sidebar-summary" class="sidebar-summary">
+                  <div class="summary-empty">Vui lòng chọn suất chiếu để tiếp tục.</div>
+               </div>
+               <div class="sidebar-footer">
+                  <div class="sidebar-total">
+                     <span>TỔNG CỘNG</span>
+                     <strong id="total-price">0đ</strong>
+                  </div>
+                  <div class="sidebar-actions">
+                     <button id="back-btn" class="btn-vue-ghost" style="display:none; flex:1;">← QUAY LẠI</button>
+                     <button id="next-btn" class="btn-primary btn-full btn-lg" disabled>TIẾP THEO</button>
+                  </div>
+               </div>
+            </div>
+         </aside>
+      </div>
+   </main>
+
+   <script src="js/utils.js"></script>
+   <script src="js/auth.js"></script>
+   <script src="js/booking.js"></script>
+</body>
+</html>

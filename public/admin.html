@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Bảng Điều Khiển - Rex Cinemas Admin</title>
+   <meta name="description" content="Hệ thống quản trị Rex Cinemas - Bảng điều khiển thống kê chuyên nghiệp">
+   <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Oswald:wght@300;400;500;700&family=Inter:wght@300;400;500;600&display=swap"
+      rel="stylesheet">
+   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+   <link rel="stylesheet" href="css/style.css">
+   <link rel="stylesheet" href="css/admin-dashboard.css">
+</head>
+
+<body>
+   <div id="toast-container"></div>
+
+   <div class="admin-layout">
+      <!-- Sidebar -->
+      <aside class="admin-sidebar">
+         <div class="admin-sidebar-header"
+            style="display:flex; flex-direction:row; align-items:flex-end; gap: 8px; justify-content:center; padding: 25px 0;">
+            <a href="/" class="admin-logo" style="margin-bottom:0; display:flex;">
+               <img src="img/logo.png" alt="Rex Cinemas" style="height:36px; object-fit:contain;">
+            </a>
+            <span class="admin-label"
+               style="font-family: var(--mont); font-size: 13px; font-weight: 700; letter-spacing: 3px; color: #fff; margin-bottom: 10px; line-height: 1; text-transform: uppercase;">ADMIN
+               PANEL</span>
+         </div>
+         <nav class="admin-nav">
+            <a href="#" class="active" onclick="showAdminSection('dashboard', this)">Dashboard</a>
+            <a href="#" onclick="showAdminSection('movies', this)">Quản lý Phim</a>
+            <a href="#" onclick="showAdminSection('theaters', this)">Rạp & Phòng chiếu</a>
+            <a href="#" onclick="showAdminSection('showtimes', this)">Suất chiếu</a>
+            <a href="#" onclick="showAdminSection('snacks', this)">Bắp nước</a>
+            <a href="#" onclick="showAdminSection('bookings', this)">Đơn hàng</a>
+            <a href="#" onclick="showAdminSection('users', this)">Người dùng</a>
+            <a href="#" onclick="showAdminSection('reviews', this)">Đánh giá</a>
+            <a href="#" onclick="showAdminSection('events', this)">Sự kiện</a>
+            <a href="#" onclick="showAdminSection('articles', this)">Bài viết</a>
+            <a href="#" onclick="showAdminSection('media', this)">Trailer & Clip</a>
+         </nav>
+         <div class="admin-sidebar-footer">
+            <div class="admin-user">
+               <span id="admin-user-name">Admin</span>
+            </div>
+            <a href="/profile.html" class="admin-footer-link">← Trang cá nhân</a>
+            <a href="/" class="admin-footer-link">← Về trang chủ</a>
+         </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="admin-main">
+         <!-- DASHBOARD -->
+         <div id="panel-dashboard" class="admin-panel">
+            <!-- Header with date and refresh -->
+            <div class="dash-header">
+               <div>
+                  <h1 class="dash-title">BẢNG ĐIỀU KHIỂN</h1>
+                  <p class="dash-subtitle" id="dash-datetime">Đang tải...</p>
+               </div>
+               <div class="dash-header-actions">
+                  <span class="dash-badge-live"><span class="live-dot"></span> LIVE</span>
+                  <button class="dash-refresh-btn" onclick="loadDashboard()" id="refresh-btn" title="Làm mới dữ liệu">
+                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                     Làm mới
+                  </button>
+               </div>
+            </div>
+
+            <div class="dash-filter-panel">
+               <div class="dash-filter-grid">
+                  <label class="dash-filter-field">
+                     <span>Từ ngày</span>
+                     <input type="date" id="dash-start-date">
+                  </label>
+                  <label class="dash-filter-field">
+                     <span>Đến ngày</span>
+                     <input type="date" id="dash-end-date">
+                  </label>
+                  <label class="dash-filter-field">
+                     <span>Rạp</span>
+                     <select id="dash-theater-filter">
+                        <option value="">Tất cả rạp</option>
+                     </select>
+                  </label>
+                  <label class="dash-filter-field">
+                     <span>Phim</span>
+                     <select id="dash-movie-filter">
+                        <option value="">Tất cả phim</option>
+                     </select>
+                  </label>
+                  <label class="dash-filter-field">
+                     <span>Thanh toán</span>
+                     <select id="dash-payment-filter">
+                        <option value="all">Tất cả phương thức</option>
+                        <option value="vietqr">VietQR/VietinBank</option>
+                        <option value="momo">MoMo</option>
+                        <option value="vnpay">VNPay</option>
+                        <option value="atm">ATM/VNPay</option>
+                        <option value="visa">Visa/Stripe</option>
+                     </select>
+                  </label>
+               </div>
+               <div class="dash-filter-actions">
+                  <button class="dash-range-chip" onclick="setDashboardQuickRange(7)">7 ngày</button>
+                  <button class="dash-range-chip" onclick="setDashboardQuickRange(30)">30 ngày</button>
+                  <button class="dash-range-chip" onclick="setDashboardQuickRange('month')">Tháng này</button>
+                  <button class="dash-range-chip ghost" onclick="resetDashboardFilters()">Đặt lại</button>
+               </div>
+               <div class="dash-filter-toolbar">
+                  <button class="dash-filter-btn primary" onclick="applyDashboardFilters()">Áp dụng</button>
+                  <button class="dash-filter-btn" onclick="exportDashboardCsv()">Xuất CSV</button>
+               </div>
+               <div id="dash-filter-summary" class="dash-filter-summary">Đang tải bộ lọc...</div>
+            </div>
+
+            <!-- KPI Cards Row 1 -->
+            <div class="kpi-grid">
+               <div class="kpi-card kpi-revenue">
+                   <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+                  <div class="kpi-body">
+                     <div class="kpi-label">DOANH THU TRONG KỲ</div>
+                     <div class="kpi-value" id="stat-revenue">—</div>
+                     <div class="kpi-sub" id="stat-revenue-sub">So với kỳ trước</div>
+                  </div>
+                  <div class="kpi-trend" id="kpi-trend-revenue"></div>
+               </div>
+               <div class="kpi-card kpi-tickets">
+                   <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg></div>
+                  <div class="kpi-body">
+                     <div class="kpi-label">VÉ ĐÃ BÁN</div>
+                     <div class="kpi-value" id="stat-tickets">—</div>
+                     <div class="kpi-sub">Vé từ đơn thành công</div>
+                  </div>
+               </div>
+               <div class="kpi-card kpi-users">
+                   <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+                  <div class="kpi-body">
+                     <div class="kpi-label">KHÁCH DUY NHẤT</div>
+                     <div class="kpi-value" id="stat-users">—</div>
+                     <div class="kpi-sub">Đã mua vé trong kỳ</div>
+                  </div>
+               </div>
+               <div class="kpi-card kpi-movies">
+                   <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg></div>
+                  <div class="kpi-body">
+                     <div class="kpi-label">PHIM ĐANG QUẢN LÝ</div>
+                     <div class="kpi-value" id="stat-movies">—</div>
+                     <div class="kpi-sub">Toàn bộ catalog</div>
+                  </div>
+               </div>
+               <div class="kpi-card kpi-today">
+                   <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+                  <div class="kpi-body">
+                     <div class="kpi-label">ĐƠN TRUNG BÌNH</div>
+                     <div class="kpi-value" id="stat-aov">—</div>
+                     <div class="kpi-sub">Giá trị trung bình / đơn</div>
+                  </div>
+               </div>
+            </div>
+
+            <div class="dash-insight-grid">
+               <div class="dash-insight-card">
+                  <span>Đơn trong kỳ</span>
+                  <strong id="insight-total-orders">—</strong>
+               </div>
+               <div class="dash-insight-card">
+                  <span>Đơn thành công</span>
+                  <strong id="insight-paid-orders">—</strong>
+               </div>
+               <div class="dash-insight-card">
+                  <span>Đơn chờ</span>
+                  <strong id="insight-pending-orders">—</strong>
+               </div>
+               <div class="dash-insight-card">
+                  <span>Đơn hủy</span>
+                  <strong id="insight-cancelled-orders">—</strong>
+               </div>
+               <div class="dash-insight-card">
+                  <span>Tỷ lệ hoàn tất</span>
+                  <strong id="insight-completion-rate">—</strong>
+               </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="charts-row">
+               <!-- Revenue Trend Chart -->
+               <div class="chart-card chart-wide">
+                  <div class="chart-header">
+                      <h3 class="chart-title" id="revenue-trend-title"><svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> DOANH THU THEO NGÀY</h3>
+                     <div class="chart-legend">
+                        <span class="legend-dot" style="background:#f97316"></span> Doanh thu (VNĐ)
+                     </div>
+                  </div>
+                  <div class="chart-wrap">
+                     <canvas id="chart-revenue-trend"></canvas>
+                  </div>
+               </div>
+
+               <!-- Payment Methods Donut -->
+               <div class="chart-card chart-narrow">
+                  <div class="chart-header">
+                      <h3 class="chart-title"><svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> PHƯƠNG THỨC THANH TOÁN</h3>
+                  </div>
+                  <div class="chart-wrap chart-donut-wrap">
+                     <canvas id="chart-payment-methods"></canvas>
+                  </div>
+                  <div id="payment-legend" class="payment-legend"></div>
+               </div>
+            </div>
+
+            <!-- Second Charts Row -->
+            <div class="charts-row">
+               <!-- Booking Status Pie -->
+               <div class="chart-card chart-narrow">
+                  <div class="chart-header">
+                      <h3 class="chart-title"><svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> TRẠNG THÁI ĐẶT VÉ</h3>
+                  </div>
+                  <div class="chart-wrap chart-donut-wrap">
+                     <canvas id="chart-booking-status"></canvas>
+                  </div>
+                  <div id="status-legend" class="payment-legend"></div>
+               </div>
+
+               <!-- Membership Distribution -->
+               <div class="chart-card chart-narrow">
+                  <div class="chart-header">
+                      <h3 class="chart-title"><svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> PHÂN LOẠI THÀNH VIÊN</h3>
+                  </div>
+                  <div class="chart-wrap chart-donut-wrap">
+                     <canvas id="chart-membership"></canvas>
+                  </div>
+                  <div id="membership-legend" class="payment-legend"></div>
+               </div>
+
+               <!-- Theater Occupancy -->
+               <div class="chart-card chart-medium">
+                  <div class="chart-header">
+                      <h3 class="chart-title" id="occupancy-title"><svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> TỈ LỆ LẤP ĐẦY RẠP</h3>
+                  </div>
+                  <div id="occupancy-list" class="occupancy-list"></div>
+               </div>
+            </div>
+
+            <div class="dash-detail-section">
+               <div class="section-header">
+                  <h3 class="section-title" id="daily-breakdown-title"><svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg> CHI TIẾT THEO NGÀY</h3>
+                  <div class="dash-detail-hint">Đơn, vé và doanh thu trong phạm vi đang lọc</div>
+               </div>
+               <div class="dash-table-wrap">
+                  <table class="dash-detail-table">
+                     <thead>
+                        <tr>
+                           <th>Ngày</th>
+                           <th>Đơn</th>
+                           <th>Thành công</th>
+                           <th>Chờ</th>
+                           <th>Hủy</th>
+                           <th>Vé</th>
+                           <th>Doanh thu</th>
+                           <th>AOV</th>
+                        </tr>
+                     </thead>
+                     <tbody id="daily-metrics-body">
+                        <tr><td colspan="8" style="text-align:center; color:rgba(255,255,255,0.35); padding:18px;">Đang tải...</td></tr>
+                     </tbody>
+                  </table>
+               </div>
+            </div>
+
+            <!-- Bottom Grid: Top Movies + Recent Activity -->
+            <div class="bottom-grid">
+               <!-- Top Movies -->
+               <div class="dash-section">
+                  <div class="section-header">
+                      <h3 class="section-title"><svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg> TOP PHIM DOANH THU CAO</h3>
+                  </div>
+                  <div id="top-movies-list" class="top-movies-list"></div>
+               </div>
+
+               <!-- Top Theaters -->
+               <div class="dash-section">
+                  <div class="section-header">
+                      <h3 class="section-title"><svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> TOP RẠP DOANH THU</h3>
+                  </div>
+                  <div id="top-theaters-list" class="top-theaters-list"></div>
+               </div>
+
+               <!-- Recent Activity -->
+               <div class="dash-section dash-section-wide">
+                  <div class="section-header">
+                      <h3 class="section-title"><svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> HOẠT ĐỘNG GẦN ĐÂY</h3>
+                  </div>
+                  <div id="recent-activity" class="recent-activity">
+                     <div class="activity-loading">Đang tải...</div>
+                  </div>
+               </div>
+            </div>
+         </div>
+
+         <!-- MOVIES -->
+         <div id="panel-movies" class="admin-panel" style="display:none;">
+            <div class="admin-panel-header">
+               <h1>QUẢN LÝ PHIM</h1>
+               <button class="btn-admin-add" onclick="showAddMovieModal()">+ Thêm phim mới</button>
+            </div>
+            <div class="admin-table-wrap">
+               <table class="admin-table">
+                  <thead>
+                     <tr>
+                        <th>Poster</th>
+                        <th>Tên phim</th>
+                        <th>Thể loại</th>
+                        <th>Thời lượng</th>
+                        <th>Trạng thái</th>
+                        <th>Suất chiếu</th>
+                        <th>Hành động</th>
+                     </tr>
+                  </thead>
+                  <tbody id="movies-table-body"></tbody>
+               </table>
+            </div>
+         </div>
+
+         <!-- THEATERS & ROOMS -->
+         <div id="panel-theaters" class="admin-panel" style="display:none;">
+            <div class="admin-panel-header">
+               <h1>RẠP & PHÒNG CHIẾU</h1>
+               <div style="display:flex; gap:10px;">
+                  <button class="btn-admin-add" onclick="showAddTheaterModal()">+ Thêm rạp</button>
+                  <button class="btn-admin-add secondary" onclick="showAddRoomModal()">+ Thêm phòng</button>
+               </div>
+            </div>
+            <div class="admin-table-wrap">
+               <table class="admin-table">
+                  <thead>
+                     <tr>
+                        <th>Tên</th>
+                        <th>Địa chỉ / Loại</th>
+                        <th>Hotline / Ghế</th>
+                        <th>Phòng chiếu</th>
+                        <th>Hành động</th>
+                     </tr>
+                  </thead>
+                  <tbody id="theaters-table-body"></tbody>
+               </table>
+            </div>
+         </div>
+
+         <!-- SHOWTIMES -->
+         <div id="panel-showtimes" class="admin-panel" style="display:none;">
+            <div class="admin-panel-header">
+               <h1>SUẤT CHIẾU</h1>
+               <button class="btn-admin-add" onclick="showAddShowtimeModal()">+ Thêm suất chiếu</button>
+            </div>
+            <div class="admin-table-wrap">
+               <table class="admin-table">
+                  <thead>
+                     <tr>
+                        <th>Phim</th>
+                        <th>Rạp — Phòng</th>
+                        <th>Ngày</th>
+                        <th>Giờ</th>
+                        <th>Giá vé</th>
+                        <th>Đã bán</th>
+                        <th>Hành động</th>
+                     </tr>
+                  </thead>
+                  <tbody id="showtimes-table-body"></tbody>
+               </table>
+            </div>
+         </div>
+
+         <!-- SNACKS -->
+         <div id="panel-snacks" class="admin-panel" style="display:none;">
+            <div class="admin-panel-header">
+               <h1>BẮP NƯỚC (COMBO)</h1>
+               <button class="btn-admin-add" onclick="showAddSnackModal()">+ Thêm Combo</button>
+            </div>
+            <div class="admin-table-wrap">
+               <table class="admin-table">
+                  <thead>
+                     <tr>
+                        <th>Tên Combo</th>
+                        <th>Hình ảnh</th>
+                        <th>Giá (VNĐ)</th>
+                        <th>Mô tả</th>
+                        <th>Hành động</th>
+                     </tr>
+                  </thead>
+                  <tbody id="snacks-table-body"></tbody>
+               </table>
+            </div>
+         </div>
+
+         <!-- BOOKINGS -->
+         <div id="panel-bookings" class="admin-panel" style="display:none;">
+            <div class="admin-panel-header">
+               <h1>ĐƠN HÀNG</h1>
+            </div>
+            <div class="admin-table-wrap">
+               <table class="admin-table">
+                  <thead>
+                     <tr>
+                        <th>Mã đơn</th>
+                        <th>Khách hàng</th>
+                        <th>Phim</th>
+                        <th>Suất chiếu</th>
+                        <th>Ghế</th>
+                        <th>Tổng tiền</th>
+                        <th>Trạng thái</th>
+                        <th>Hành động</th>
+                     </tr>
+                  </thead>
+                  <tbody id="bookings-table-body"></tbody>
+               </table>
+            </div>
+         </div>
+
+         <!-- USERS -->
+         <div id="panel-users" class="admin-panel" style="display:none;">
+            <div class="admin-panel-header">
+               <h1>NGƯỜI DÙNG</h1>
+            </div>
+            <div class="admin-table-wrap">
+               <table class="admin-table">
+                  <thead>
+                     <tr>
+                        <th>ID</th>
+                        <th>Họ tên</th>
+                        <th>Email</th>
+                        <th>SĐT</th>
+                        <th>Vai trò</th>
+                        <th>Hạng</th>
+                        <th>Điểm</th>
+                        <th>Đơn hàng</th>
+                        <th>Tổng chi</th>
+                     </tr>
+                  </thead>
+                  <tbody id="users-table-body"></tbody>
+               </table>
+            </div>
+         </div>
+
+         <!-- REVIEWS -->
+         <div id="panel-reviews" class="admin-panel" style="display:none;">
+            <div class="admin-panel-header">
+               <h1>ĐÁNH GIÁ PHIM</h1>
+            </div>
+            <div class="admin-table-wrap">
+               <table class="admin-table">
+                  <thead>
+                     <tr>
+                        <th>ID</th>
+                        <th>Phim</th>
+                        <th>Người dùng</th>
+                        <th>Số sao</th>
+                        <th>Nội dung</th>
+                        <th>Ngày gửi</th>
+                        <th>Hành động</th>
+                     </tr>
+                  </thead>
+               <tbody id="reviews-table-body"></tbody>
+               </table>
+            </div>
+         </div>
+
+         <!-- EVENTS -->
+         <div id="panel-events" class="admin-panel" style="display:none;">
+            <div class="admin-panel-header">
+               <h1>SỰ KIỆN TRANG CHỦ</h1>
+               <button class="btn-admin-add" onclick="showAddEventModal()">+ Thêm sự kiện</button>
+            </div>
+            <div class="admin-table-wrap">
+               <table class="admin-table">
+                  <thead>
+                     <tr>
+                        <th>ID</th>
+                        <th>Tiêu đề</th>
+                        <th>Nhãn</th>
+                        <th>Bố cục</th>
+                        <th>Thứ tự</th>
+                        <th>Hiển thị</th>
+                        <th>Hành động</th>
+                     </tr>
+                  </thead>
+                  <tbody id="events-table-body"></tbody>
+               </table>
+            </div>
+         </div>
+
+         <!-- ARTICLES -->
+         <div id="panel-articles" class="admin-panel" style="display:none;">
+            <div class="admin-panel-header">
+               <h1>BÀI VIẾT TRANG CHỦ</h1>
+               <button class="btn-admin-add" onclick="showAddArticleModal()">+ Thêm bài viết</button>
+            </div>
+            <div class="admin-table-wrap">
+               <table class="admin-table">
+                  <thead>
+                     <tr>
+                        <th>ID</th>
+                        <th>Hình ảnh</th>
+                        <th>Tiêu đề</th>
+                        <th>Chuyên mục</th>
+                        <th>Ngày</th>
+                        <th>Thứ tự</th>
+                        <th>Hiển thị</th>
+                        <th>Hành động</th>
+                     </tr>
+                  </thead>
+                  <tbody id="articles-table-body"></tbody>
+               </table>
+            </div>
+         </div>
+
+         <!-- MEDIA -->
+         <div id="panel-media" class="admin-panel" style="display:none;">
+            <div class="admin-panel-header">
+               <h1>TRAILER & CLIP</h1>
+               <button class="btn-admin-add" onclick="showAddMediaModal()">+ Thêm mục</button>
+            </div>
+            <div class="admin-table-wrap">
+               <table class="admin-table">
+                  <thead>
+                     <tr>
+                        <th>ID</th>
+                        <th>Thumbnail</th>
+                        <th>Tiêu đề</th>
+                        <th>Loại</th>
+                        <th>Video URL</th>
+                        <th>Thứ tự</th>
+                        <th>Hiển thị</th>
+                        <th>Hành động</th>
+                     </tr>
+                  </thead>
+                  <tbody id="media-table-body"></tbody>
+               </table>
+            </div>
+         </div>
+      </main>
+   </div>
+
+   <!-- ============ MODALS ============ -->
+
+   <!-- Movie Modal -->
+   <div id="movie-modal" class="admin-modal modal">
+      <div class="modal-content admin-modal-content">
+         <span class="close-btn">&times;</span>
+         <h2 id="movie-modal-title" class="admin-modal-title">THÊM PHIM MỚI</h2>
+         <form id="movie-form" onsubmit="submitMovieForm(event)">
+            <div class="form-row">
+               <div class="form-group"><label>Tên phim *</label><input type="text" id="m-title" required></div>
+               <div class="form-group">
+                  <label>Thể loại</label>
+                  <div class="genre-checkbox-grid" id="m-genre-container">
+                     <label><input type="checkbox" value="action"> Hành động</label>
+                     <label><input type="checkbox" value="drama"> Tâm lý</label>
+                     <label><input type="checkbox" value="comedy"> Hài hước</label>
+                     <label><input type="checkbox" value="horror"> Kinh dị</label>
+                     <label><input type="checkbox" value="animation"> Hoạt hình</label>
+                     <label><input type="checkbox" value="scifi"> Sci-Fi</label>
+                  </div>
+               </div>
+            </div>
+            <div class="form-group"><label>Mô tả</label><textarea id="m-description" rows="3"></textarea></div>
+            <div class="form-row">
+               <div class="form-group"><label>URL Poster (Cỡ dọc)</label><input type="text" id="m-poster"></div>
+               <div class="form-group"><label>URL Backdrop (Cỡ ngang)</label><input type="text" id="m-backdrop"></div>
+               <div class="form-group"><label>URL Trailer</label><input type="url" id="m-trailer"></div>
+            </div>
+            <div class="form-row">
+               <div class="form-group"><label>Đạo diễn</label><input type="text" id="m-director" placeholder="VD: Christopher Nolan..."></div>
+               <div class="form-group"><label>Diễn viên</label><input type="text" id="m-cast" placeholder="VD: Leonardo, Tom Hardy..."></div>
+            </div>
+            <div class="form-row">
+               <div class="form-group"><label>Thời lượng (phút)</label><input type="number" id="m-duration" min="1">
+               </div>
+               <div class="form-group"><label>Ngày khởi chiếu</label><input type="date" id="m-release"></div>
+            </div>
+            <div class="form-row">
+               <div class="form-group">
+                  <label>Phân loại</label>
+                  <select id="m-age">
+                     <option value="P">P (Mọi lứa tuổi)</option>
+                     <option value="C13">C13</option>
+                     <option value="C16">C16</option>
+                     <option value="C18">C18</option>
+                  </select>
+               </div>
+               <div class="form-group">
+                  <label>Trạng thái</label>
+                  <select id="m-status">
+                     <option value="now_showing">Đang chiếu</option>
+                     <option value="coming_soon">Sắp chiếu</option>
+                  </select>
+                  <div class="info-note" style="margin-top:8px;">Phim sắp chiếu sẽ tự chuyển sang Đang chiếu khi tới ngày khởi chiếu.</div>
+               </div>
+            </div>
+            <div class="form-group" style="display:flex; align-items:center; gap:10px; margin-top:5px;">
+               <input type="checkbox" id="m-featured" style="width:18px;height:18px;">
+               <label for="m-featured" style="margin:0; font-weight:700; color:var(--vue-orange);">⭐ Gắn cờ Nổi Bật (Ưu
+                  tiên hiển thị lớn trên Trang chủ)</label>
+            </div>
+            <button type="submit" class="btn-primary btn-full btn-lg">LƯU PHIM</button>
+         </form>
+      </div>
+   </div>
+
+   <!-- Theater Modal -->
+   <div id="theater-modal" class="admin-modal modal">
+      <div class="modal-content admin-modal-content">
+         <span class="close-btn">&times;</span>
+         <h2 id="theater-modal-title" class="admin-modal-title">THÊM RẠP MỚI</h2>
+         <form id="theater-form" onsubmit="submitTheaterForm(event)">
+            <div class="form-group"><label>Tên rạp *</label><input type="text" id="t-name" required></div>
+            <div class="form-group"><label>Địa chỉ *</label><input type="text" id="t-address" required></div>
+            <div class="form-group"><label>Hotline</label><input type="text" id="t-hotline"></div>
+            <button type="submit" class="btn-primary btn-full btn-lg">LƯU RẠP</button>
+         </form>
+      </div>
+   </div>
+
+   <!-- Room Modal -->
+   <div id="room-modal" class="admin-modal modal">
+      <div class="modal-content admin-modal-content">
+         <span class="close-btn">&times;</span>
+         <h2 class="admin-modal-title">THÊM PHÒNG CHIẾU</h2>
+         <form id="room-form" onsubmit="submitRoomForm(event)">
+            <div class="form-group"><label>Rạp *</label><select id="r-theater" required></select></div>
+            <div class="form-row">
+               <div class="form-group"><label>Tên phòng *</label><input type="text" id="r-name" required
+                     placeholder="Phòng 01"></div>
+               <div class="form-group">
+                  <label>Loại phòng</label>
+                  <select id="r-type">
+                     <option value="Standard">Standard</option>
+                     <option value="IMAX">IMAX</option>
+                     <option value="4DX">4DX</option>
+                     <option value="Dolby">Dolby Atmos</option>
+                  </select>
+               </div>
+            </div>
+            <div class="form-row">
+               <div class="form-group"><label>Số hàng ghế</label><input type="number" id="r-rows" min="1" max="26"
+                     placeholder="10"></div>
+               <div class="form-group"><label>Số ghế mỗi hàng</label><input type="number" id="r-cols" min="1" max="30"
+                     placeholder="10"></div>
+            </div>
+            <div class="form-row">
+               <div class="form-group"><label>Hàng VIP (vd: G,H,I)</label><input type="text" id="r-vip"
+                     placeholder="G,H,I"></div>
+               <div class="form-group"><label>Hàng Đôi (vd: J)</label><input type="text" id="r-couple" placeholder="J">
+               </div>
+            </div>
+            <button type="submit" class="btn-primary btn-full btn-lg">TẠO PHÒNG & GHẾ</button>
+         </form>
+      </div>
+   </div>
+
+   <!-- Showtime Modal -->
+   <div id="showtime-modal" class="admin-modal modal">
+      <div class="modal-content admin-modal-content">
+         <span class="close-btn">&times;</span>
+         <h2 class="admin-modal-title">THÊM SUẤT CHIẾU</h2>
+         <form id="showtime-form" onsubmit="submitShowtimeForm(event)">
+            <div class="form-group"><label>Phim *</label><select id="st-movie" required></select></div>
+            <div class="form-group"><label>Phòng chiếu *</label><select id="st-room" required></select></div>
+            <div class="form-row">
+               <div class="form-group"><label>Ngày chiếu *</label><input type="date" id="st-date" required></div>
+               <div class="form-group"><label>Giá vé (đ) *</label><input type="number" id="st-price" min="0" step="1000"
+                     required placeholder="85000"></div>
+            </div>
+            <div class="form-row">
+               <div class="form-group"><label>Giờ bắt đầu *</label><input type="time" id="st-start" required></div>
+               <div class="form-group"><label>Giờ kết thúc</label><input type="time" id="st-end"></div>
+            </div>
+            <button type="submit" class="btn-primary btn-full btn-lg">THÊM SUẤT CHIẾU</button>
+         </form>
+      </div>
+   </div>
+
+   <!-- Snack Modal -->
+   <div id="snack-modal" class="admin-modal modal">
+      <div class="modal-content admin-modal-content">
+         <span class="close-btn">&times;</span>
+         <h2 id="snack-modal-title" class="admin-modal-title">THÊM COMBO BẮP NƯỚC</h2>
+         <form id="snack-form" onsubmit="submitSnackForm(event)">
+            <div class="form-group"><label>Tên Combo *</label><input type="text" id="sn-name" required></div>
+            <div class="form-group"><label>URL Hình ảnh</label><input type="text" id="sn-image"></div>
+            <div class="form-group"><label>Giá (VNĐ) *</label><input type="number" id="sn-price" required min="0"></div>
+            <div class="form-group"><label>Mô tả chi tiết</label><textarea id="sn-description" rows="3"></textarea>
+            </div>
+            <button type="submit" class="btn-primary btn-full btn-lg">LƯU COMBO</button>
+         </form>
+      </div>
+   </div>
+
+   <!-- Event Modal -->
+   <div id="event-modal" class="admin-modal modal">
+      <div class="modal-content admin-modal-content">
+         <span class="close-btn">&times;</span>
+         <h2 id="event-modal-title" class="admin-modal-title">THÊM SỰ KIỆN</h2>
+         <form id="event-form" onsubmit="submitEventForm(event)">
+            <div class="form-row">
+               <div class="form-group"><label>Tiêu đề chính *</label><input type="text" id="ev-title" required></div>
+               <div class="form-group"><label>Từ nhấn màu cam</label><input type="text" id="ev-accent"></div>
+            </div>
+            <div class="form-row">
+               <div class="form-group"><label>Tag</label><input type="text" id="ev-tag" placeholder="NỔI BẬT"></div>
+               <div class="form-group">
+                  <label>Bố cục</label>
+                  <select id="ev-layout">
+                     <option value="text_left">Text trái - ảnh phải</option>
+                     <option value="text_right">Ảnh trái - text phải</option>
+                  </select>
+               </div>
+            </div>
+            <div class="form-group"><label>Mô tả</label><textarea id="ev-description" rows="4"></textarea></div>
+            <div class="form-row">
+               <div class="form-group"><label>Nút CTA</label><input type="text" id="ev-button-text" placeholder="TÌM HIỂU THÊM"></div>
+               <div class="form-group"><label>Link CTA</label><input type="text" id="ev-button-link" placeholder="#events-section"></div>
+            </div>
+            <div class="form-row">
+               <div class="form-group"><label>Ảnh nền URL</label><input type="text" id="ev-image-url"></div>
+               <div class="form-group"><label>Thứ tự</label><input type="number" id="ev-sort-order" min="0" value="0"></div>
+            </div>
+            <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+               <input type="checkbox" id="ev-active" checked style="width:18px;height:18px;">
+               <label for="ev-active" style="margin:0;">Hiển thị trên trang chủ</label>
+            </div>
+            <button type="submit" class="btn-primary btn-full btn-lg">LƯU SỰ KIỆN</button>
+         </form>
+      </div>
+   </div>
+
+   <!-- Article Modal -->
+   <div id="article-modal" class="admin-modal modal">
+      <div class="modal-content admin-modal-content">
+         <span class="close-btn">&times;</span>
+         <h2 id="article-modal-title" class="admin-modal-title">THÊM BÀI VIẾT</h2>
+         <form id="article-form" onsubmit="submitArticleForm(event)">
+            <div class="form-group"><label>Tiêu đề *</label><input type="text" id="ar-title" required></div>
+            <div class="form-row">
+               <div class="form-group"><label>Chuyên mục</label><input type="text" id="ar-category" placeholder="TIN TỨC"></div>
+               <div class="form-group"><label>Ngày đăng</label><input type="date" id="ar-date"></div>
+            </div>
+            <div class="form-group"><label>Ảnh bài viết URL</label><input type="text" id="ar-image-url"></div>
+            <div class="form-row">
+               <div class="form-group"><label>Link bài viết</label><input type="text" id="ar-link-url" placeholder="#"></div>
+               <div class="form-group"><label>Thứ tự</label><input type="number" id="ar-sort-order" min="0" value="0"></div>
+            </div>
+            <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+               <input type="checkbox" id="ar-active" checked style="width:18px;height:18px;">
+               <label for="ar-active" style="margin:0;">Hiển thị trên trang chủ</label>
+            </div>
+            <button type="submit" class="btn-primary btn-full btn-lg">LƯU BÀI VIẾT</button>
+         </form>
+      </div>
+   </div>
+
+   <!-- Media Modal -->
+   <div id="media-modal" class="admin-modal modal">
+      <div class="modal-content admin-modal-content">
+         <span class="close-btn">&times;</span>
+         <h2 id="media-modal-title" class="admin-modal-title">THÊM TRAILER / CLIP</h2>
+         <form id="media-form" onsubmit="submitMediaForm(event)">
+            <div class="form-group"><label>Tiêu đề *</label><input type="text" id="md-title" required></div>
+            <div class="form-row">
+               <div class="form-group">
+                  <label>Loại</label>
+                  <select id="md-type">
+                     <option value="trailer">Trailer</option>
+                     <option value="clip">Clip</option>
+                  </select>
+               </div>
+               <div class="form-group"><label>Thứ tự</label><input type="number" id="md-sort-order" min="0" value="0"></div>
+            </div>
+            <div class="form-group"><label>Thumbnail URL</label><input type="text" id="md-thumbnail-url"></div>
+            <div class="form-group"><label>Video URL</label><input type="text" id="md-video-url" placeholder="https://www.youtube.com/watch?v=..."></div>
+            <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+               <input type="checkbox" id="md-active" checked style="width:18px;height:18px;">
+               <label for="md-active" style="margin:0;">Hiển thị trên trang chủ</label>
+            </div>
+            <button type="submit" class="btn-primary btn-full btn-lg">LƯU TRAILER / CLIP</button>
+         </form>
+      </div>
+   </div>
+
+   <script src="js/utils.js"></script>
+   <script src="js/admin.js"></script>
+   <script src="js/admin-dashboard.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,28 @@
+/* EXTRA BOOKING CSS - date tabs, snack grid override for booking.css standalone */
+
+/* Date tabs inside booking */
+.showtime-date-tab {
+   background: none;
+   border: none;
+   border-bottom: 2px solid transparent;
+   color: #666;
+   font-family: var(--oswald);
+   font-size: 13px;
+   letter-spacing: 1.5px;
+   padding: 12px 20px;
+   cursor: pointer;
+   transition: 0.2s;
+   white-space: nowrap;
+   margin-bottom: -1px;
+}
+.showtime-date-tab:hover { color: #ccc; }
+.showtime-date-tab.active { color: var(--white); border-bottom-color: var(--vue-orange); }
+
+/* Showtime group label */
+.showtime-group-label {
+   font-family: var(--oswald);
+   font-size: 12px;
+   letter-spacing: 2px;
+   color: var(--text-muted);
+   margin-bottom: 12px;
+}

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Rex Cinemas - Trải nghiệm điện ảnh đỉnh cao</title>
+   <meta name="description"
+      content="Rex Cinemas - Hệ thống rạp chiếu phim hàng đầu Việt Nam. Đặt vé xem phim online nhanh chóng.">
+   <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&family=Oswald:wght@300;400;500;700&display=swap"
+      rel="stylesheet">
+   <link rel="stylesheet" href="css/style.css">
+   <script>
+      if ('scrollRestoration' in history) {
+         history.scrollRestoration = 'manual';
+      }
+
+      window.addEventListener('pageshow', () => {
+         requestAnimationFrame(() => window.scrollTo(0, 0));
+         setTimeout(() => window.scrollTo(0, 0), 60);
+      });
+
+      window.addEventListener('load', () => {
+         requestAnimationFrame(() => window.scrollTo(0, 0));
+         setTimeout(() => window.scrollTo(0, 0), 120);
+      });
+
+      window.addEventListener('beforeunload', () => {
+         window.scrollTo(0, 0);
+      });
+   </script>
+</head>
+
+<body>
+   <!-- NAVBAR -->
+   <header class="vue-navbar">
+      <div class="vue-nav-container">
+         <a href="/" class="vue-logo"
+            style="display:flex; flex-direction:row; align-items:flex-end; gap: 8px; text-decoration:none;">
+            <img src="img/logo.png" alt="Rex Cinemas">
+            <span
+               style="font-family: var(--mont); font-size: 15px; font-weight: 700; letter-spacing: 3px; color: #fff; margin-bottom: 5px; line-height: 0.5; text-transform: uppercase;">CINEMAS</span>
+         </a>
+         <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Menu">
+            <span></span><span></span><span></span>
+         </button>
+         <nav class="vue-nav-links">
+            <a href="/" class="active">LỊCH CHIẾU</a>
+            <a href="#coming-soon-section">SẮP CHIẾU</a>
+            <a href="#events-section">SỰ KIỆN</a>
+            <a href="#articles-section">BÀI VIẾT</a>
+            <a href="#" onclick="openSearchOverlay(); closeMobileMenu();">TÌM PHIM</a>
+         </nav>
+         <div class="vue-nav-right">
+            <div class="nav-auth" id="nav-auth">
+               <button class="btn-text" onclick="openAuthModal('login')">Đăng nhập</button>
+               <button class="btn btn-sm btn-accent" onclick="openAuthModal('register')">Đăng ký</button>
+            </div>
+         </div>
+      </div>
+      </div>
+   </header>
+   <div class="mobile-menu-overlay" onclick="closeMobileMenu()"></div>
+
+   <!-- SEARCH OVERLAY -->
+   <div id="search-overlay" class="search-overlay">
+      <div class="search-overlay-inner">
+         <button class="search-overlay-close" onclick="closeSearchOverlay()">✕</button>
+         <h2 class="search-overlay-title">TÌM PHIM</h2>
+         <div class="search-overlay-input-wrap">
+            <input type="text" id="search-input" placeholder="Nhập tên phim..." autocomplete="off"
+               oninput="handleSearch(this.value)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+               <circle cx="11" cy="11" r="8"></circle>
+               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+         </div>
+         <div id="search-results" class="search-results"></div>
+      </div>
+   </div>
+
+   <main>
+      <!-- HERO -->
+      <section class="vue-hero" id="hero-banner">
+         <div class="vue-hero-overlay"></div>
+         <button class="vue-hero-arrow prev" onclick="changeHeroSlide(-1)">&#10094;</button>
+         <div class="vue-hero-content" id="hero-content">
+            <div class="vh-skeleton">
+               <div class="skeleton-line" style="width:60px; height:60px; border-radius:50%; margin-bottom:20px;">
+               </div>
+               <div class="skeleton-line" style="width:300px; height:40px; margin-bottom:15px;"></div>
+               <div class="skeleton-line" style="width:200px; height:20px; margin-bottom:25px;"></div>
+               <div class="skeleton-line" style="width:150px; height:45px;"></div>
+            </div>
+         </div>
+         <button class="vue-hero-arrow next" onclick="changeHeroSlide(1)">&#10095;</button>
+         <div class="hero-dots" id="hero-dots"></div>
+      </section>
+
+      <!-- SEE WHAT'S ON AT -->
+      <section class="vue-see-whats-on container">
+         <div class="vue-combobox">
+            <span class="vue-combo-label">XEM LỊCH CHIẾU TẠI</span>
+            <div class="vue-combo-input-wrapper">
+               <input type="text" id="venue-search" placeholder="Chọn Rạp Rex" list="venue-list">
+               <datalist id="venue-list"></datalist>
+               <span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                     <polyline points="7 10 12 15 17 10"></polyline>
+                  </svg>
+               </span>
+            </div>
+            <button class="vue-combo-go" onclick="goToVenueSchedule()">TÌM</button>
+         </div>
+      </section>
+
+      <!-- GENRE FILTER TABS -->
+      <section class="genre-filter-wrapper">
+         <div class="genre-tabs" id="genre-tabs">
+            <button class="genre-tab active" onclick="filterByGenre('all', this)">Tất cả</button>
+            <button class="genre-tab" onclick="filterByGenre('action', this)">Hành động</button>
+            <button class="genre-tab" onclick="filterByGenre('drama', this)">Tâm lý</button>
+            <button class="genre-tab" onclick="filterByGenre('comedy', this)">Hài hước</button>
+            <button class="genre-tab" onclick="filterByGenre('horror', this)">Kinh dị</button>
+            <button class="genre-tab" onclick="filterByGenre('animation', this)">Hoạt hình</button>
+            <button class="genre-tab" onclick="filterByGenre('scifi', this)">Sci-Fi</button>
+         </div>
+      </section>
+
+      <!-- TOP FILMS -->
+      <section class="vue-section container" id="now-showing-section">
+         <h2 class="vue-section-heading">PHIM ĐANG CHIẾU</h2>
+         <div id="movie-grid" class="vue-films-grid"></div>
+      </section>
+
+      <!-- COMING SOON -->
+      <section class="vue-section container" id="coming-soon-section">
+         <div class="vue-section-heading-wrap">
+            <h2 class="vue-section-heading">SẮP KHỞI CHIẾU</h2>
+            <a href="#coming-soon-section" class="vue-view-all">Xem tất cả</a>
+         </div>
+         <div id="coming-soon-grid" class="vue-films-grid"></div>
+      </section>
+
+      <!-- BIG SCREEN EVENTS BANNER -->
+      <section class="vue-section container" id="events-section">
+         <div class="vue-section-heading-wrap" style="border-top-color:#888;">
+            <h2 class="vue-section-heading" style="border:none;">SỰ KIỆN LỚN</h2>
+            <a href="#events-section" class="vue-view-all">Xem tất cả sự kiện</a>
+         </div>
+         <div id="events-list">
+            <p class="empty-state">Đang tải sự kiện...</p>
+         </div>
+      </section>
+
+      <!-- MEMBER PROMO BANNER -->
+      <section class="promo-banner container">
+         <div class="promo-inner">
+            <div class="promo-left">
+               <span class="promo-eyebrow">THÀNH VIÊN REX</span>
+               <h2>Tích điểm, đổi ưu đãi</h2>
+               <p>Mỗi lần đặt vé, bạn nhận điểm tích lũy để đổi vé miễn phí, bắp nước và nhiều phần quà hấp dẫn khác.
+               </p>
+               <div class="promo-tiers">
+                  <div class="tier">
+                     <span class="tier-icon silver"></span>
+                     <span>Bạc</span>
+                  </div>
+                  <div class="tier">
+                     <span class="tier-icon gold"></span>
+                     <span>Vàng</span>
+                  </div>
+                  <div class="tier">
+                     <span class="tier-icon diamond"></span>
+                     <span>Kim cương</span>
+                  </div>
+               </div>
+               <button class="btn-vue-outline" onclick="openAuthModal('register')">ĐĂNG KÝ NGAY - MIỄN PHÍ</button>
+            </div>
+            <div class="promo-right">
+               <div class="promo-gift-frame">
+                  <img src="img/thequatang.png" alt="Thẻ quà tặng Rex Cinemas" class="promo-gift-image" loading="lazy">
+               </div>
+            </div>
+         </div>
+      </section>
+
+      <!-- ARTICLES -->
+      <section class="vue-section container" id="articles-section">
+         <div class="vue-section-heading-wrap" style="border-top-color:#ED8E00;">
+            <h2 class="vue-section-heading" style="border:none;">BÀI VIẾT MỚI NHẤT</h2>
+            <a href="#articles-section" class="vue-view-all">Xem tất cả</a>
+         </div>
+         <div id="articles-grid" class="vue-articles-grid">
+            <p class="empty-state">Đang tải bài viết...</p>
+         </div>
+      </section>
+
+      <!-- TRAILERS AND CLIPS ROW -->
+      <section class="vue-section container" id="media-section" style="margin-bottom: 80px;">
+         <div class="vue-section-heading-wrap" style="margin-bottom: 25px;">
+            <h2 class="vue-section-heading" style="margin-bottom: 0;">TRAILER VÀ CLIP</h2>
+            <a href="#media-section" class="vue-view-all">Xem tất cả</a>
+         </div>
+         <div id="media-strip" style="display:flex; gap:12px; overflow-x:auto; padding-bottom:15px; scrollbar-width:thin;">
+            <p class="empty-state">Đang tải trailer và clip...</p>
+         </div>
+      </section>
+
+      <div id="toast-container"></div>
+   </main>
+
+   <!-- FOOTER -->
+   <footer class="vue-site-footer">
+      <div class="container footer-service">
+         <h2 class="vue-section-heading"
+            style="text-align:center; margin: 0 auto 15px auto; border-top:none; display:block;">CHĂM SÓC KHÁCH HÀNG
+         </h2>
+         <p class="footer-service-desc">
+            Để liên hệ, vui lòng truy cập trang Câu hỏi thường gặp. Đội ngũ chăm sóc khách hàng sẵn sàng từ 9h sáng
+            đến 7h tối mỗi ngày.</p>
+      </div>
+
+      <div class="container">
+         <div class="vue-footer-grid">
+            <div class="vue-col">
+               <h4>LIÊN HỆ</h4>
+               <a href="#">Hỏi / Đáp (FAQ)</a>
+               <a href="#">Kiểm tra Voucher</a>
+               <a href="#">Gửi phản hồi</a>
+               <a href="tel:19001234">Hotline: 1900 1234</a>
+            </div>
+            <div class="vue-col">
+               <h4>VỀ REX</h4>
+               <a href="#">Ứng dụng iOS</a>
+               <a href="#">Ứng dụng Android</a>
+               <a href="#">Khám phá</a>
+               <a href="#">Trailers</a>
+               <a href="#">Bài viết</a>
+               <a href="#">Thẻ quà tặng</a>
+               <a href="#">Ưu đãi thành viên</a>
+               <a href="#">Tuyển dụng</a>
+            </div>
+            <div class="vue-col">
+               <h4>PHÁP LÝ</h4>
+               <a href="#">Khả năng truy cập</a>
+               <a href="#">Chính sách bảo mật</a>
+               <a href="#">Chính sách Cookie</a>
+               <a href="#">Điều khoản sử dụng</a>
+               <a href="#">Thông tin dinh dưỡng</a>
+            </div>
+            <div class="vue-col">
+               <h4>MẠNG XÃ HỘI</h4>
+               <a href="#">Instagram</a>
+               <a href="#">Facebook</a>
+               <a href="#">TikTok</a>
+               <a href="#">X (Twitter)</a>
+               <a href="#">YouTube</a>
+            </div>
+         </div>
+      </div>
+
+      <div class="vue-footer-logo-area">
+         <img src="img/logo.png" alt="Rex Cinemas" class="vue-giant-logo-img">
+      </div>
+      <div class="vue-footer-copyright container">
+         &copy; Rex Cinemas 2026. Tất cả quyền được bảo lưu.
+      </div>
+   </footer>
+   <button class="vue-back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+   <!-- QUICK BOOK STICKY BAR -->
+   <div class="vue-quickbook">
+      <div class="vue-qb-yellow">ĐẶT VÉ<br>NHANH</div>
+      <div class="vue-qb-form">
+         <div class="vue-qb-field">
+            <label>RẠP</label>
+            <select id="qb-venue">
+               <option value="">Chọn Rạp</option>
+            </select>
+         </div>
+         <div class="vue-qb-field">
+            <label>PHIM</label>
+            <select id="qb-movie">
+               <option value="">Chọn Phim</option>
+            </select>
+         </div>
+         <div class="vue-qb-field">
+            <label>NGÀY</label>
+            <select id="qb-date">
+               <option value="">Chọn Ngày</option>
+            </select>
+         </div>
+         <div class="vue-qb-field">
+            <label>GIỜ</label>
+            <select id="qb-time" disabled>
+               <option value="">Chọn Giờ</option>
+            </select>
+         </div>
+         <button class="vue-qb-submit" onclick="quickBook()">TÌM KIẾM</button>
+      </div>
+   </div>
+
+   <!-- Trailer Modal -->
+   <div id="trailer-modal" class="modal">
+      <div class="modal-content trailer-content">
+         <span class="close-btn" id="close-trailer">&times;</span>
+         <div class="video-container">
+            <iframe id="trailer-video" src="" frameborder="0" allowfullscreen
+               allow="autoplay; encrypted-media"></iframe>
+         </div>
+      </div>
+   </div>
+
+   <script src="js/utils.js"></script>
+   <script src="js/auth.js"></script>
+   <script src="js/main.js"></script>
+</body>
+
+</html>

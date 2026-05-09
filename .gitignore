@@ -1,0 +1,5 @@
+.env
+rexcinemas.db
+rexcinemas.db-shm
+rexcinemas.db-wal
+node_modules

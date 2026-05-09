@@ -1,0 +1,316 @@
+/* ============================================
+   PROFILE PAGE - VUE Cinemas Style
+   ============================================ */
+.profile-container {
+   display: grid;
+   grid-template-columns: 280px 1fr;
+   gap: 3rem;
+   margin-top: 3rem;
+   padding-bottom: 5rem;
+}
+
+.profile-sidebar {
+   position: sticky;
+   top: 100px;
+   height: fit-content;
+}
+
+.user-info-card {
+   background: var(--card-bg);
+   padding: 2rem;
+   border-radius: var(--radius);
+   text-align: center;
+   border: 1px solid var(--card-border);
+   margin-bottom: 1.5rem;
+}
+
+.user-avatar {
+   width: 70px;
+   height: 70px;
+   background: var(--orange);
+   color: var(--black);
+   font-size: 1.8rem;
+   font-weight: 800;
+   font-family: var(--mont);
+   border-radius: 50%;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   margin: 0 auto 1.2rem;
+}
+
+.user-info-card h2 {
+   font-family: var(--mont);
+   font-size: 20px;
+   font-weight: 600;
+   margin-bottom: 5px;
+}
+
+.user-info-card p {
+   color: var(--text-muted);
+   font-size: 14px;
+   margin-bottom: 1rem;
+   font-family: var(--mont);
+}
+
+.badge-member {
+   display: inline-block;
+   padding: 5px 14px;
+   border-radius: 4px;
+   font-size: 11px;
+   font-weight: 700;
+   text-transform: uppercase;
+   letter-spacing: 1px;
+   background: #333;
+   color: var(--white);
+   font-family: var(--mont);
+}
+
+.badge-member.silver {
+   background: linear-gradient(135deg, #8e8e8e, #c0c0c0);
+   color: #000;
+}
+
+.badge-member.gold {
+   background: linear-gradient(135deg, #bf953f, #fcf6ba, #b38728);
+   color: #000;
+}
+
+.badge-member.diamond {
+   background: linear-gradient(135deg, #00d2ff, #3a7bd5);
+   color: #fff;
+   box-shadow: 0 0 12px rgba(0, 210, 255, 0.3);
+   animation: diamondShine 2s infinite;
+}
+
+@keyframes diamondShine {
+   0%, 100% { filter: brightness(1); }
+   50% { filter: brightness(1.2); }
+}
+
+/* Profile Nav */
+.profile-nav {
+   display: flex;
+   flex-direction: column;
+   gap: 0;
+}
+
+.profile-nav a {
+   padding: 12px 16px;
+   color: var(--text-muted);
+   text-decoration: none;
+   font-weight: 400;
+   font-size: 14px;
+   font-family: var(--mont);
+   transition: var(--transition);
+   border-left: 3px solid transparent;
+}
+
+.profile-nav a:hover {
+   color: var(--white);
+   background: rgba(255, 255, 255, 0.03);
+}
+
+.profile-nav a.active {
+   color: var(--orange);
+   border-left-color: var(--orange);
+   background: rgba(237, 142, 0, 0.05);
+   font-weight: 600;
+}
+
+.btn-logout {
+   margin-top: 1rem;
+   background: transparent;
+   border: none;
+   border-left: 3px solid transparent;
+   color: #e74c3c;
+   padding: 12px 16px;
+   text-align: left;
+   font-weight: 500;
+   cursor: pointer;
+   font-size: 14px;
+   font-family: var(--mont);
+   transition: var(--transition);
+}
+
+.btn-logout:hover {
+   background: rgba(231, 76, 60, 0.05);
+   border-left-color: #e74c3c;
+}
+
+/* Booking History */
+.booking-history-grid {
+   display: flex;
+   flex-direction: column;
+   gap: 12px;
+}
+
+.booking-card {
+   background: var(--card-bg);
+   padding: 1.2rem 1.5rem;
+   border-radius: var(--radius);
+   display: grid;
+   grid-template-columns: 1fr auto auto;
+   align-items: center;
+   gap: 1.5rem;
+   border: 1px solid var(--card-border);
+   transition: var(--transition);
+   cursor: pointer;
+}
+
+.booking-card:hover {
+   border-color: var(--orange);
+   box-shadow: 4px 4px 8px var(--orange-glow);
+}
+
+.booking-main h3 {
+   font-family: var(--mont);
+   font-size: 16px;
+   font-weight: 600;
+   margin-bottom: 4px;
+}
+
+.booking-main p {
+   font-size: 13px;
+   color: var(--text-muted);
+   font-family: var(--mont);
+}
+
+.booking-status {
+   padding: 4px 12px;
+   border-radius: 4px;
+   font-size: 11px;
+   font-weight: 700;
+   font-family: var(--mont);
+   text-transform: uppercase;
+   letter-spacing: 0.5px;
+   background: rgba(7, 15, 25, 0.6);
+}
+
+.booking-status.paid {
+   color: #4caf50;
+   border: 1px solid rgba(76, 175, 80, 0.2);
+}
+
+.booking-price { text-align: right; }
+.booking-price strong { color: var(--orange); font-size: 16px; }
+
+/* E-Ticket Card */
+.ticket-card {
+   max-width: 380px;
+   padding: 0 !important;
+   background: var(--white) !important;
+   color: var(--black);
+   border-radius: 12px !important;
+   overflow: hidden;
+   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+}
+
+.ticket-header {
+   background: var(--black);
+   color: var(--white);
+   padding: 1.2rem 1.5rem;
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+}
+
+.ticket-logo {
+   font-family: var(--comf);
+   font-size: 16px;
+   font-weight: 700;
+}
+
+.ticket-logo span { color: var(--orange); }
+
+.ticket-id {
+   font-size: 12px;
+   font-weight: 700;
+   opacity: 0.6;
+   letter-spacing: 1px;
+   font-family: var(--mont);
+}
+
+.ticket-body {
+   padding: 1.5rem;
+   position: relative;
+   border-bottom: 2px dashed #ddd;
+}
+
+.ticket-body::before,
+.ticket-body::after {
+   content: '';
+   position: absolute;
+   bottom: -15px;
+   width: 30px;
+   height: 30px;
+   background: rgba(4, 13, 31, 0.85);
+   border-radius: 50%;
+}
+
+.ticket-body::before { left: -15px; }
+.ticket-body::after { right: -15px; }
+
+.ticket-body h2 {
+   font-family: var(--mont);
+   font-size: 20px;
+   margin-bottom: 1.5rem;
+   color: #111;
+}
+
+.ticket-info-row {
+   display: flex;
+   justify-content: space-between;
+   margin-bottom: 1rem;
+}
+
+.info-item label {
+   display: block;
+   font-size: 10px;
+   text-transform: uppercase;
+   font-weight: 700;
+   color: #999;
+   margin-bottom: 3px;
+   letter-spacing: 1px;
+   font-family: var(--mont);
+}
+
+.info-item p {
+   font-size: 15px;
+   font-weight: 600;
+   color: #111;
+   font-family: var(--mont);
+}
+
+.ticket-qr {
+   text-align: center;
+   margin-top: 1.5rem;
+   padding-top: 1.5rem;
+   border-top: 1px solid #eee;
+}
+
+.ticket-qr img { width: 120px; margin: 0 auto 8px; }
+.ticket-qr p { font-size: 12px; color: #999; font-family: var(--mont); }
+
+.ticket-footer {
+   padding: 1.2rem;
+   text-align: center;
+   background: #f5f5f5;
+}
+
+.ticket-footer p {
+   font-size: 13px;
+   font-weight: 600;
+   color: #666;
+   font-family: var(--mont);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+   .profile-container {
+      grid-template-columns: 1fr;
+      margin-top: 2rem;
+   }
+   .profile-sidebar { position: static; }
+   .booking-card { grid-template-columns: 1fr; gap: 8px; }
+}

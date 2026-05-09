@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Kết quả thanh toán - Rex Cinemas</title>
+   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&family=Oswald:wght@300;400;500;700&display=swap" rel="stylesheet">
+   <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+   <header class="vue-navbar">
+      <div class="vue-nav-container">
+         <a href="/" class="vue-logo" style="display:flex; flex-direction:row; align-items:flex-end; gap: 8px; text-decoration:none;">
+            <img src="img/logo.png" alt="Rex Cinemas">
+            <span style="font-family: var(--mont); font-size: 15px; font-weight: 700; letter-spacing: 3px; color: #fff; margin-bottom: 5px; line-height: 0.5; text-transform: uppercase;">CINEMAS</span>
+         </a>
+      </div>
+   </header>
+
+   <main class="container" style="padding: 60px 18px 100px;">
+      <div id="payment-result-card" class="sidebar-card" style="max-width: 760px; margin: 0 auto;">
+         <h1 class="section-title" style="border-top:none; padding-top:0;">KẾT QUẢ THANH TOÁN</h1>
+         <div id="payment-result-content" class="summary-empty">Đang kiểm tra trạng thái đơn hàng...</div>
+      </div>
+   </main>
+
+   <script src="js/utils.js"></script>
+   <script src="js/payment-result.js"></script>
+</body>
+</html>
