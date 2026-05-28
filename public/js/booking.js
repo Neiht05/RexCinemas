@@ -330,24 +330,14 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     }
 
-    async function refreshSelectedSeatHolds() {
-        if (selectedSeats.length === 0 || !selectedShowtime?.id) return;
-        await Promise.all(selectedSeats.map(seat => holdSeatOnServer(seat.id)));
-    }
-
     async function refreshSeatState() {
         if (seatRefreshInFlight || currentStep < 2 || !selectedShowtime?.id) return;
         if (currentStep === 2 && Date.now() - lastSeatInteractionAt < 1200) return;
         seatRefreshInFlight = true;
         try {
-            await refreshSelectedSeatHolds();
-            if (currentStep === 2) {
-                await loadSeats(selectedShowtime.id, { silent: true });
-            }
+            await loadSeats(selectedShowtime.id, { silent: true });
         } catch (e) {
-            if (currentStep === 2) {
-                await loadSeats(selectedShowtime.id, { silent: true });
-            }
+            await loadSeats(selectedShowtime.id, { silent: true });
         } finally {
             seatRefreshInFlight = false;
         }

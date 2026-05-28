@@ -52,7 +52,7 @@ const isAdmin = (req, res, next) => {
 };
 
 const PENDING_TIMEOUT_MINUTES = 15;
-const SEAT_HOLD_TIMEOUT_MINUTES = PENDING_TIMEOUT_MINUTES;
+const SEAT_HOLD_TIMEOUT_MINUTES = 5;
 
 const PAYMENT_METHOD_LABELS = {
     momo: 'MoMo',
@@ -712,10 +712,16 @@ app.post('/api/bookings/checkout', authenticateToken, async (req, res) => {
             WHERE bt.seat_id = ? AND b.showtime_id = ? AND b.status != 'cancelled'
         `);
         const checkHeld = db.prepare(`
-            SELECT s.seat_row || s.seat_number as seat_name, sh.session_id
-            FROM seat_holds sh
-            JOIN seats s ON sh.seat_id = s.id
-            WHERE sh.showtime_id = ? AND sh.seat_id = ? AND sh.expires_at > datetime('now', 'localtime')
+            SELECT
+                s.seat_row || s.seat_number as seat_name,
+                sh.session_id
+            FROM seats s
+            JOIN showtimes st ON st.room_id = s.room_id
+            LEFT JOIN seat_holds sh
+                ON sh.seat_id = s.id
+               AND sh.showtime_id = st.id
+               AND sh.expires_at > datetime('now', 'localtime')
+            WHERE st.id = ? AND s.id = ?
         `);
 
         for (const seat of data.seats) {
@@ -724,7 +730,13 @@ app.post('/api/bookings/checkout', authenticateToken, async (req, res) => {
                 throw new Error(`Ghế ${booked.seat_name} đã được đặt bởi người khác. Vui lòng chọn ghế khác.`);
             }
             const held = checkHeld.get(data.showtime_id, seat.id);
-            if (held && held.session_id !== data.seat_session_id) {
+            if (!held) {
+                throw new Error('Ghế không hợp lệ cho suất chiếu này.');
+            }
+            if (!held.session_id) {
+                throw new Error(`Ghế ${held.seat_name} đã hết thời gian giữ. Vui lòng chọn lại ghế.`);
+            }
+            if (held.session_id !== data.seat_session_id) {
                 throw new Error(`Ghế ${held.seat_name} đang được người khác chọn. Vui lòng chọn ghế khác.`);
             }
         }
