@@ -102,7 +102,7 @@ function renderTrendBadge(percent, previousRevenue, currentRevenue) {
 }
 
 // ── Payment method label map ──
-const PM_LABELS = { vietqr: 'VietQR/VietinBank', momo: 'MoMo', vnpay: 'VNPay', atm: 'ATM/VNPay', visa: 'Visa/Stripe', stripe: 'Stripe', cash: 'Tiền mặt' };
+const PM_LABELS = { momo: 'MoMo', cash: 'Tiền mặt' };
 const PM_COLORS = ['#ff8a00','#f43f5e','#3b82f6','#22c55e','#8b5cf6','#f59e0b','#06b6d4'];
 const STATUS_COLORS = { paid: '#22c55e', pending: '#f59e0b', cancelled: '#ef4444' };
 const STATUS_LABELS = { paid: 'Đã thanh toán', pending: 'Chờ thanh toán', cancelled: 'Đã hủy' };

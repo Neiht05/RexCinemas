@@ -513,13 +513,13 @@ body {
    QUICK BOOK BAR
    ============================================ */
 .vue-quickbook { position: fixed; bottom: 0; left: 0; right: 0; height: 80px; background: #fff; display: flex; z-index: 2000; box-shadow: 0 -4px 20px rgba(0,0,0,0.5); }
-.vue-qb-yellow { background: var(--vue-yellow); color: #000; font-family: var(--oswald); font-size: 21px; font-weight: 500; letter-spacing: 2px; padding: 0 40px; display: flex; align-items: center; justify-content: center; text-align: center; min-width: 220px; line-height: 1.1; }
-.vue-qb-form { display: flex; flex: 1; }
-.vue-qb-field { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 22px; border-right: 1px solid #e5e5e5; }
+.vue-qb-yellow { background: var(--vue-yellow); color: #000; font-family: var(--oswald); font-size: 21px; font-weight: 500; letter-spacing: 2px; padding: 0 24px; display: flex; align-items: center; justify-content: center; text-align: center; min-width: 220px; flex: 0 0 220px; box-sizing: border-box; line-height: 1.1; }
+.vue-qb-form { display: flex; flex: 1; min-width: 0; }
+.vue-qb-field { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: center; padding: 0 22px; border-right: 1px solid #e5e5e5; }
 .vue-qb-field label { font-family: var(--mont); font-size: 9px; font-weight: 700; color: #aaa; letter-spacing: 1.5px; text-transform: uppercase; }
-.vue-qb-field select { border: none; background: transparent; font-size: 14px; color: #222; outline: none; margin-top: 4px; cursor: pointer; font-family: var(--mont); }
-.vue-qb-submit { background: transparent; border-left: 1px solid #e5e5e5; font-family: var(--oswald); font-size: 15px; letter-spacing: 2px; color: #aaa; padding: 0 40px; transition: 0.3s; }
-.vue-qb-submit:hover { background: #f5f5f5; color: #333; }
+.vue-qb-field select { width: 100%; border: none; background: transparent; font-size: 14px; color: #222; outline: none; margin-top: 4px; cursor: pointer; font-family: var(--mont); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vue-qb-submit { flex: 0 0 170px; min-width: 170px; display: flex; align-items: center; justify-content: center; text-align: center; white-space: nowrap; background: var(--vue-yellow); border: none; border-left: 1px solid #e5e5e5; font-family: var(--oswald); font-size: 15px; letter-spacing: 2px; color: #000; padding: 0 18px; transition: filter 0.2s ease; }
+.vue-qb-submit:hover { background: var(--vue-yellow); color: #000; filter: brightness(0.95); }
 
 /* ============================================
    MODALS
@@ -708,16 +708,6 @@ body {
 .payment-methods label input { accent-color: var(--vue-orange); }
 .payment-note { margin: 12px 0 0; padding: 14px 16px; background: #050505; border: 1px solid var(--border-dark); color: #888; font-family: var(--mont); font-size: 13px; line-height: 1.6; }
 .payment-security { margin-top: 30px; padding: 18px; background: #050505; border: 1px solid var(--border-dark); font-family: var(--mont); font-size: 13px; color: #666; }
-.vietqr-panel { display: flex; flex-direction: column; gap: 18px; padding: 20px; background: linear-gradient(180deg, rgba(237,142,0,0.08), #050505); border: 1px solid rgba(237,142,0,0.3); margin-top: 18px; }
-.vietqr-panel-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
-.vietqr-panel-title { font-family: var(--oswald); font-size: 16px; letter-spacing: 2px; color: var(--vue-orange); }
-.vietqr-panel-sub { font-family: var(--mont); font-size: 12px; color: #888; }
-.vietqr-qr-wrap { background: #fff; padding: 12px; width: min(100%, 320px); margin: 0 auto; }
-.vietqr-qr-wrap img { display: block; width: 100%; height: auto; }
-.vietqr-meta { display: grid; gap: 10px; }
-.vietqr-row { display: flex; justify-content: space-between; gap: 14px; font-family: var(--mont); font-size: 13px; }
-.vietqr-row span { color: #777; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; }
-.vietqr-row strong { color: #fff; text-align: right; word-break: break-word; }
 
 /* Booking Success */
 .booking-success { text-align: center; padding: 80px 20px; }

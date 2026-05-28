@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80" role="img" aria-labelledby="title desc">
+  <title id="title">Snack placeholder</title>
+  <desc id="desc">Fallback image when snack image is missing.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f5c96a"/>
+      <stop offset="100%" stop-color="#ed8e00"/>
+    </linearGradient>
+  </defs>
+  <rect width="80" height="80" rx="10" fill="#1f1f1f"/>
+  <rect x="12" y="12" width="56" height="56" rx="8" fill="url(#bg)"/>
+  <path d="M26 30 L54 30 L49 56 L31 56 Z" fill="#fff5df" opacity="0.92"/>
+  <path d="M32 36 L48 36 M31 43 L49 43 M30 50 L50 50" stroke="#ed8e00" stroke-width="2"/>
+</svg>

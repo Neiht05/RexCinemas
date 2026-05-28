@@ -529,7 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             list.innerHTML = snacks.map(snack => `
                 <div class="snack-item">
-                    <img src="${snack.image_url || 'https://via.placeholder.com/80'}" alt="${snack.name}" loading="lazy">
+                    <img src="${snack.image_url || '/img/placeholder-snack.svg'}" alt="${snack.name}" loading="lazy">
                     <div class="snack-info">
                         <h3>${snack.name}</h3>
                         <p>${snack.description || ''}</p>
@@ -688,7 +688,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const paymentMethod = document.querySelector('input[name="payment"]:checked')?.value || 'vietqr';
+        const paymentMethod = document.querySelector('input[name="payment"]:checked')?.value || 'momo';
 
         try {
             nextBtn.disabled = true;
@@ -703,7 +703,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 snacks: selectedSnacks.map(s => ({ id: s.id, quantity: s.quantity, price: s.price }))
             }, true);
 
-            showToast(paymentMethod === 'vietqr' ? 'Đang tạo mã QR thanh toán...' : 'Đang chuyển tới cổng thanh toán...');
+            showToast('Đang chuyển tới cổng thanh toán MoMo...');
             window.location.href = data.checkout_url;
         } catch (err) {
             showToast(err.message, 'error');

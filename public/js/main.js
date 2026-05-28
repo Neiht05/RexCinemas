@@ -345,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return `
             <div class="vue-film-card" onclick="window.location='/booking.html?movie=${movie.slug}'">
                 <div class="film-poster-wrap">
-                    <img src="${movie.poster_url || 'https://via.placeholder.com/300x450/111/ED8E00?text=No+Image'}" alt="${movie.title}" loading="lazy">
+                    <img src="${movie.poster_url || '/img/placeholder-poster.svg'}" alt="${movie.title}" loading="lazy">
                     ${ratingBadge}
                     <div class="film-hover-overlay">
                         <button class="film-overlay-btn" onclick="event.stopPropagation(); window.location='/booking.html?movie=${movie.slug}'">${isComingSoon ? 'XEM CHI TIẾT' : 'ĐẶT VÉ'}</button>

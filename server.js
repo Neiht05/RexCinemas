@@ -12,14 +12,8 @@ const {
     paymentConfig,
     ensureProviderConfigured,
     createMoMoPayment,
-    createVnpayPayment,
-    createVietQrPayment,
-    createStripePayment,
-    buildVietQrImageUrl,
-    verifyVnpayReturn,
     verifyMoMoSignature,
-    retrieveStripeSession,
-    getStripeClient
+    queryMoMoTransaction,
 } = require('./payments');
 
 const app = express();
@@ -31,12 +25,7 @@ if (!JWT_SECRET || JWT_SECRET === 'change_me_in_env') {
 const _JWT_SECRET = JWT_SECRET || 'rexcinemas_fallback_dev_only_not_for_production';
 
 app.use(cors());
-app.use((req, res, next) => {
-    if (req.path === '/api/payments/stripe/webhook') {
-        return express.raw({ type: 'application/json' })(req, res, next);
-    }
-    return express.json({ limit: '10mb' })(req, res, next);
-});
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ============================================
@@ -64,20 +53,11 @@ const isAdmin = (req, res, next) => {
 
 const PENDING_TIMEOUT_MINUTES = 15;
 const SEAT_HOLD_TIMEOUT_MINUTES = PENDING_TIMEOUT_MINUTES;
-const PAYMENT_METHOD_PROVIDER = {
-    vietqr: 'vietqr'
-};
 
 const PAYMENT_METHOD_LABELS = {
-    vietqr: 'VietQR / VietinBank',
     momo: 'MoMo',
-    vnpay: 'VNPay',
-    atm: 'ATM/VNPay',
-    visa: 'Visa/Stripe',
-    stripe: 'Stripe',
     cash: 'Tiền mặt'
 };
-const VIETQR_SKIP_CONFIRMATION = process.env.VIETQR_SKIP_CONFIRMATION === 'true';
 const DASHBOARD_DEFAULT_RANGE_DAYS = 29;
 
 const cleanupExpiredPendingBookings = () => {
@@ -86,26 +66,18 @@ const cleanupExpiredPendingBookings = () => {
         SET status = 'cancelled',
             payment_last_error = COALESCE(payment_last_error, 'Payment session expired')
         WHERE status = 'pending'
-          AND booking_time <= datetime('now', ?)
+          AND booking_time <= datetime('now', 'localtime', ?)
     `).run(`-${PENDING_TIMEOUT_MINUTES} minutes`);
 };
 
 const cleanupExpiredSeatHolds = () => {
     db.prepare(`
         DELETE FROM seat_holds
-        WHERE expires_at <= datetime('now')
+        WHERE expires_at <= datetime('now', 'localtime')
     `).run();
 };
 
 const getSeatSessionId = (req) => String(req.headers['x-seat-session-id'] || req.body?.seat_session_id || '').trim();
-
-const getClientIp = (req) => {
-    const forwarded = req.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string' && forwarded.length > 0) {
-        return forwarded.split(',')[0].trim();
-    }
-    return req.socket?.remoteAddress || '127.0.0.1';
-};
 
 const generateReference = (prefix = 'REX') =>
     `${prefix}${Date.now()}${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
@@ -140,7 +112,7 @@ const markBookingPaid = db.transaction((bookingId, transactionId = '') => {
         UPDATE bookings
         SET status = 'paid',
             payment_transaction_id = COALESCE(?, payment_transaction_id),
-            payment_completed_at = CURRENT_TIMESTAMP,
+            payment_completed_at = datetime('now', 'localtime'),
             payment_last_error = NULL
         WHERE id = ?
     `).run(transactionId || booking.payment_transaction_id || null, bookingId);
@@ -159,6 +131,79 @@ const markBookingCancelled = (bookingId, message = 'Payment failed or cancelled'
             payment_last_error = ?
         WHERE id = ? AND status != 'paid'
     `).run(message, bookingId);
+};
+
+const MOMO_SUCCESS_RESULT_CODES = new Set([0, 9000]);
+const MOMO_PENDING_RESULT_CODES = new Set([1000, 7000, 7002]);
+
+const toRoundedAmount = (value) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return null;
+    return Math.round(parsed);
+};
+
+const getMoMoResultCode = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
+const isMoMoAmountMatch = (booking, momoAmount) => {
+    const bookingAmount = toRoundedAmount(booking?.total_amount);
+    const callbackAmount = toRoundedAmount(momoAmount);
+    return bookingAmount !== null && callbackAmount !== null && bookingAmount === callbackAmount;
+};
+
+const isMoMoPartnerCodeMatch = (partnerCode) =>
+    String(partnerCode || '').trim() === String(paymentConfig.momo.partnerCode || '').trim();
+
+const resolveMoMoCheckoutMethod = (method) => {
+    const normalized = String(method || '').trim().toLowerCase();
+    if (!normalized || normalized === 'momo') {
+        return { paymentMethod: 'momo', requestType: 'payWithMethod' };
+    }
+    if (normalized === 'momo_wallet' || normalized === 'wallet') {
+        return { paymentMethod: 'momo_wallet', requestType: 'captureWallet' };
+    }
+    if (normalized === 'momo_atm' || normalized === 'atm' || normalized === 'paywithatm') {
+        return { paymentMethod: 'momo_atm', requestType: 'payWithATM' };
+    }
+    throw new Error('Phương thức thanh toán không hợp lệ. Vui lòng chọn MoMo Ví hoặc MoMo ATM.');
+};
+
+const buildPaymentResultUrl = (status, bookingCode) => {
+    const params = new URLSearchParams({ status });
+    if (bookingCode) params.set('booking', bookingCode);
+    return `${APP_BASE_URL}/payment-result.html?${params.toString()}`;
+};
+
+const reconcilePendingMoMoBooking = async (booking) => {
+    if (!booking || booking.status !== 'pending' || booking.payment_provider !== 'momo' || !booking.payment_reference) {
+        return booking;
+    }
+
+    const queryResult = await queryMoMoTransaction({
+        orderId: booking.payment_reference,
+        requestId: generateReference('QRY')
+    });
+
+    const hasPartnerCode = queryResult.partnerCode !== undefined && queryResult.partnerCode !== null && queryResult.partnerCode !== '';
+    const hasAmount = queryResult.amount !== undefined && queryResult.amount !== null && queryResult.amount !== '';
+    if ((hasPartnerCode && !isMoMoPartnerCodeMatch(queryResult.partnerCode))
+        || (hasAmount && !isMoMoAmountMatch(booking, queryResult.amount))) {
+        markBookingCancelled(booking.id, 'Du lieu doi soat MoMo khong hop le.');
+        return db.prepare('SELECT * FROM bookings WHERE id = ?').get(booking.id);
+    }
+
+    const resultCode = getMoMoResultCode(queryResult.resultCode);
+    if (MOMO_SUCCESS_RESULT_CODES.has(resultCode)) {
+        return markBookingPaid(booking.id, queryResult.transId ? String(queryResult.transId) : '');
+    }
+    if (MOMO_PENDING_RESULT_CODES.has(resultCode) || resultCode === null) {
+        return booking;
+    }
+
+    markBookingCancelled(booking.id, queryResult.message || 'MoMo payment failed');
+    return db.prepare('SELECT * FROM bookings WHERE id = ?').get(booking.id);
 };
 
 const toISODate = (date) => date.toISOString().split('T')[0];
@@ -283,6 +328,25 @@ const resolveMovieStatus = (status, releaseDate) => {
     }
     return desiredStatus;
 };
+
+const buildMovieSlug = (title) => String(title || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+const toPositiveInt = (value) => {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+const toPositiveNumber = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+const isValidDateString = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+const isValidTimeString = (value) => typeof value === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
 
 app.use(['/api/movies', '/api/admin/movies'], (req, res, next) => {
     syncReleasedMovies();
@@ -443,7 +507,7 @@ app.get('/api/showtimes/:id/seats', (req, res) => {
         LEFT JOIN seat_holds sh
             ON sh.seat_id = s.id
            AND sh.showtime_id = ?
-           AND sh.expires_at > datetime('now')
+           AND sh.expires_at > datetime('now', 'localtime')
         WHERE s.room_id = ?
         ORDER BY s.seat_row, s.seat_number
     `).all(req.params.id, req.params.id, showtime.room_id).map(seat => ({
@@ -494,7 +558,7 @@ app.post('/api/showtimes/:id/seats/hold', (req, res) => {
             const activeHold = db.prepare(`
                 SELECT session_id
                 FROM seat_holds
-                WHERE showtime_id = ? AND seat_id = ? AND expires_at > datetime('now')
+                WHERE showtime_id = ? AND seat_id = ? AND expires_at > datetime('now', 'localtime')
             `).get(req.params.id, seatId);
             if (activeHold && activeHold.session_id !== seatSessionId) {
                 const err = new Error(`Ghế ${seat.seat_row}${seat.seat_number} đang được người khác chọn.`);
@@ -504,14 +568,14 @@ app.post('/api/showtimes/:id/seats/hold', (req, res) => {
 
             const upsertResult = db.prepare(`
                 INSERT INTO seat_holds (showtime_id, seat_id, session_id, user_id, expires_at)
-                VALUES (?, ?, ?, ?, datetime('now', ?))
+                VALUES (?, ?, ?, ?, datetime('now', 'localtime', ?))
                 ON CONFLICT(showtime_id, seat_id) DO UPDATE SET
                     session_id = excluded.session_id,
                     user_id = excluded.user_id,
                     expires_at = excluded.expires_at,
-                    updated_at = CURRENT_TIMESTAMP
+                    updated_at = datetime('now', 'localtime')
                 WHERE seat_holds.session_id = excluded.session_id
-                   OR seat_holds.expires_at <= datetime('now')
+                   OR seat_holds.expires_at <= datetime('now', 'localtime')
             `).run(req.params.id, seatId, seatSessionId, req.user?.id || null, `+${SEAT_HOLD_TIMEOUT_MINUTES} minutes`);
 
             if (upsertResult.changes === 0) {
@@ -613,7 +677,7 @@ app.get('/api/content/media', (req, res) => {
 // ============================================
 
 app.post('/api/bookings/checkout', authenticateToken, async (req, res) => {
-    const { showtime_id, total_amount, payment_method, seats, snacks, seat_session_id } = req.body;
+    const { showtime_id, total_amount, seats, snacks, seat_session_id, payment_method } = req.body;
     cleanupExpiredPendingBookings();
     cleanupExpiredSeatHolds();
 
@@ -626,9 +690,12 @@ app.post('/api/bookings/checkout', authenticateToken, async (req, res) => {
     if (!seat_session_id) {
         return res.status(400).json({ error: "Thiếu mã phiên chọn ghế." });
     }
-    const provider = PAYMENT_METHOD_PROVIDER[payment_method];
-    if (!provider) {
-        return res.status(400).json({ error: "Phương thức thanh toán không hợp lệ." });
+    const provider = 'momo';
+    let resolvedMethod;
+    try {
+        resolvedMethod = resolveMoMoCheckoutMethod(payment_method);
+    } catch (error) {
+        return res.status(400).json({ error: error.message });
     }
 
     try {
@@ -648,7 +715,7 @@ app.post('/api/bookings/checkout', authenticateToken, async (req, res) => {
             SELECT s.seat_row || s.seat_number as seat_name, sh.session_id
             FROM seat_holds sh
             JOIN seats s ON sh.seat_id = s.id
-            WHERE sh.showtime_id = ? AND sh.seat_id = ? AND sh.expires_at > datetime('now')
+            WHERE sh.showtime_id = ? AND sh.seat_id = ? AND sh.expires_at > datetime('now', 'localtime')
         `);
 
         for (const seat of data.seats) {
@@ -702,23 +769,26 @@ app.post('/api/bookings/checkout', authenticateToken, async (req, res) => {
     });
 
     try {
-        const booking = createPendingBooking({ showtime_id, total_amount, payment_method, seats, snacks, seat_session_id });
+        const booking = createPendingBooking({
+            showtime_id,
+            total_amount,
+            payment_method: resolvedMethod.paymentMethod,
+            seats,
+            snacks,
+            seat_session_id
+        });
         const orderInfo = `Thanh toan ve xem phim #${booking.id} - Rex Cinemas`;
         let checkout;
 
-        if (provider === 'vietqr') {
-            checkout = createVietQrPayment({
+        if (provider === 'momo') {
+            checkout = await createMoMoPayment({
                 booking,
                 amount: total_amount,
-                orderInfo
+                orderInfo,
+                requestType: resolvedMethod.requestType
             });
         } else {
-            return res.status(400).json({ error: 'Phương thức thanh toán này tạm thời đã đóng. Chỉ hỗ trợ VietQR.' });
-        }
-
-        const shouldAutoConfirmVietQr = provider === 'vietqr' && VIETQR_SKIP_CONFIRMATION;
-        if (shouldAutoConfirmVietQr) {
-            markBookingPaid(booking.id, `VIETQR-TEST-${booking.payment_reference}`);
+            return res.status(400).json({ error: 'Phương thức thanh toán này tạm thời đã đóng. Chỉ hỗ trợ MoMo.' });
         }
 
         db.prepare('UPDATE bookings SET payment_session_id = ? WHERE id = ?').run(checkout.sessionId || null, booking.id);
@@ -727,10 +797,8 @@ app.post('/api/bookings/checkout', authenticateToken, async (req, res) => {
             message: "Khởi tạo thanh toán thành công.",
             booking_id: booking.id,
             booking_code: booking.booking_code,
-            status: shouldAutoConfirmVietQr ? 'paid' : booking.status,
-            checkout_url: shouldAutoConfirmVietQr
-                ? `${APP_BASE_URL}/payment-result.html?status=success&booking=${encodeURIComponent(booking.booking_code)}`
-                : checkout.checkoutUrl,
+            status: booking.status,
+            checkout_url: checkout.checkoutUrl,
             provider
         });
     } catch (error) {
@@ -738,198 +806,90 @@ app.post('/api/bookings/checkout', authenticateToken, async (req, res) => {
     }
 });
 
-app.get('/api/payment-status/:bookingCode', (req, res) => {
+app.get('/api/payment-status/:bookingCode', async (req, res) => {
     cleanupExpiredPendingBookings();
-    const booking = getBookingWithDetailsByCode(req.params.bookingCode);
+    let booking = getBookingWithDetailsByCode(req.params.bookingCode);
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+    if (booking.status === 'pending' && booking.payment_provider === 'momo') {
+        try {
+            await reconcilePendingMoMoBooking(booking);
+            booking = getBookingWithDetailsByCode(req.params.bookingCode);
+        } catch (error) {
+            console.warn('[MoMo Query] Failed to reconcile booking', booking.booking_code, error.message);
+        }
+    }
+
     res.json(booking);
 });
 
-app.get('/api/payments/vietqr/:bookingCode', (req, res) => {
-    const booking = getBookingWithDetailsByCode(req.params.bookingCode);
-    if (!booking) {
-        return res.status(404).json({ error: 'Booking not found' });
-    }
-    if (booking.payment_provider !== 'vietqr') {
-        return res.status(400).json({ error: 'Đơn hàng này không dùng VietQR.' });
-    }
-
-    const qrUrl = buildVietQrImageUrl({
-        amount: booking.total_amount,
-        addInfo: booking.payment_reference
-    });
-
-    return res.json({
-        provider: 'vietqr',
-        bank_name: 'VietinBank',
-        bank_id: paymentConfig.vietqr.bankId,
-        account_no: paymentConfig.vietqr.accountNo,
-        account_name: paymentConfig.vietqr.accountName || null,
-        amount: booking.total_amount,
-        transfer_content: booking.payment_reference,
-        qr_url: qrUrl
-    });
-});
-
-// Browser redirect from VNPAY for immediate user-facing result.
-app.get('/api/payments/vnpay/return', (req, res) => {
-    try {
-        const verification = verifyVnpayReturn(req.query);
-        const booking = db.prepare('SELECT * FROM bookings WHERE payment_reference = ?').get(verification.reference);
-        if (!booking || !verification.isValid) {
-            return res.redirect(`${APP_BASE_URL}/payment-result.html?status=error`);
-        }
-
-        const expectedAmount = Math.round(Number(booking.total_amount) * 100);
-        const receivedAmount = Number(req.query.vnp_Amount);
-        if (!Number.isFinite(receivedAmount) || receivedAmount !== expectedAmount) {
-            return res.redirect(`${APP_BASE_URL}/payment-result.html?status=error`);
-        }
-
-        if (booking.status === 'paid') {
-            return res.redirect(`${APP_BASE_URL}/payment-result.html?status=success&booking=${encodeURIComponent(booking.booking_code)}`);
-        }
-
-        if (booking.status !== 'pending') {
-            return res.redirect(`${APP_BASE_URL}/payment-result.html?status=failed&booking=${encodeURIComponent(booking.booking_code)}`);
-        }
-
-        if (verification.isSuccess) {
-            markBookingPaid(booking.id, verification.transactionId);
-            return res.redirect(`${APP_BASE_URL}/payment-result.html?status=success&booking=${encodeURIComponent(booking.booking_code)}`);
-        }
-
-        markBookingCancelled(booking.id, `VNPAY failed: ${verification.payload.vnp_ResponseCode}`);
-        return res.redirect(`${APP_BASE_URL}/payment-result.html?status=failed&booking=${encodeURIComponent(booking.booking_code)}`);
-    } catch (error) {
-        return res.redirect(`${APP_BASE_URL}/payment-result.html?status=error`);
-    }
-});
-
-// Server-to-server callback from VNPAY; this is the authoritative status update.
-app.get('/api/payments/vnpay/ipn', (req, res) => {
-    try {
-        const verification = verifyVnpayReturn(req.query);
-        const booking = db.prepare('SELECT * FROM bookings WHERE payment_reference = ?').get(verification.reference);
-
-        if (!booking) {
-            return res.status(200).json({ RspCode: '01', Message: 'Order not found' });
-        }
-
-        if (!verification.isValid) {
-            return res.status(200).json({ RspCode: '97', Message: 'Invalid signature' });
-        }
-
-        const expectedAmount = Math.round(Number(booking.total_amount) * 100);
-        const receivedAmount = Number(req.query.vnp_Amount);
-        if (!Number.isFinite(receivedAmount) || receivedAmount !== expectedAmount) {
-            return res.status(200).json({ RspCode: '04', Message: 'invalid amount' });
-        }
-
-        if (booking.status === 'paid' || booking.status !== 'pending') {
-            return res.status(200).json({ RspCode: '02', Message: 'Order already confirmed' });
-        }
-
-        if (verification.isSuccess) {
-            markBookingPaid(booking.id, verification.transactionId);
-        } else {
-            markBookingCancelled(booking.id, `VNPAY failed: ${verification.payload.vnp_ResponseCode || 'unknown'}`);
-        }
-
-        return res.status(200).json({ RspCode: '00', Message: 'Confirm Success' });
-    } catch (error) {
-        return res.status(200).json({ RspCode: '99', Message: 'Unknown error' });
-    }
-});
-
 app.get('/api/payments/momo/return', (req, res) => {
-    const reference = req.query.orderId || req.query.order_id;
+    let verification;
+    try {
+        verification = verifyMoMoSignature(req.query);
+    } catch (error) {
+        return res.redirect(buildPaymentResultUrl('error'));
+    }
+
+    const reference = verification.reference || req.query.orderId || req.query.order_id;
     const booking = db.prepare('SELECT * FROM bookings WHERE payment_reference = ?').get(reference);
     if (!booking) {
-        return res.redirect(`${APP_BASE_URL}/payment-result.html?status=error`);
+        return res.redirect(buildPaymentResultUrl('error'));
     }
 
-    if (Number(req.query.resultCode) === 0) {
-        markBookingPaid(booking.id, req.query.transId ? String(req.query.transId) : '');
-        return res.redirect(`${APP_BASE_URL}/payment-result.html?status=success&booking=${encodeURIComponent(booking.booking_code)}`);
+    if (!verification.isValid) {
+        return res.redirect(buildPaymentResultUrl('failed', booking.booking_code));
     }
 
-    markBookingCancelled(booking.id, req.query.message || 'MoMo payment failed');
-    return res.redirect(`${APP_BASE_URL}/payment-result.html?status=failed&booking=${encodeURIComponent(booking.booking_code)}`);
+    if (!isMoMoPartnerCodeMatch(verification.payload.partnerCode) || !isMoMoAmountMatch(booking, verification.payload.amount)) {
+        markBookingCancelled(booking.id, 'Du lieu thanh toan MoMo khong hop le.');
+        return res.redirect(buildPaymentResultUrl('failed', booking.booking_code));
+    }
+
+    if (booking.status === 'paid') {
+        return res.redirect(buildPaymentResultUrl('success', booking.booking_code));
+    }
+
+    if (verification.isSuccess) {
+        markBookingPaid(booking.id, verification.transactionId);
+        return res.redirect(buildPaymentResultUrl('success', booking.booking_code));
+    }
+
+    markBookingCancelled(booking.id, verification.payload.message || 'MoMo payment failed');
+    return res.redirect(buildPaymentResultUrl('failed', booking.booking_code));
 });
 
 app.post('/api/payments/momo/ipn', (req, res) => {
     try {
         const verification = verifyMoMoSignature(req.body);
+        if (!verification.reference) {
+            return res.status(400).json({ resultCode: 1, message: 'missing_order_id' });
+        }
+
         const booking = db.prepare('SELECT * FROM bookings WHERE payment_reference = ?').get(verification.reference);
-        if (!booking || !verification.isValid) {
-            return res.status(400).json({ message: 'invalid' });
-        }
-
-        if (verification.isSuccess) markBookingPaid(booking.id, verification.transactionId);
-        else markBookingCancelled(booking.id, verification.payload.message || 'MoMo payment failed');
-
-        return res.json({ message: 'success' });
-    } catch (error) {
-        return res.status(500).json({ message: 'error' });
-    }
-});
-
-app.get('/api/payments/stripe/return', async (req, res) => {
-    try {
-        const { session_id, booking_code } = req.query;
-        if (!session_id) {
-            return res.redirect(`${APP_BASE_URL}/payment-result.html?status=error`);
-        }
-        const session = await retrieveStripeSession(session_id);
-        const booking = db.prepare('SELECT * FROM bookings WHERE booking_code = ?').get(booking_code || session.client_reference_id);
         if (!booking) {
-            return res.redirect(`${APP_BASE_URL}/payment-result.html?status=error`);
+            return res.status(404).json({ resultCode: 1, message: 'booking_not_found' });
+        }
+        if (!verification.isValid) {
+            return res.status(400).json({ resultCode: 1, message: 'invalid_signature' });
+        }
+        if (!isMoMoPartnerCodeMatch(verification.payload.partnerCode)) {
+            return res.status(400).json({ resultCode: 1, message: 'invalid_partner_code' });
+        }
+        if (!isMoMoAmountMatch(booking, verification.payload.amount)) {
+            markBookingCancelled(booking.id, 'So tien thanh toan khong khop.');
+            return res.status(400).json({ resultCode: 1, message: 'invalid_amount' });
         }
 
-        if (session.payment_status === 'paid') {
-            markBookingPaid(booking.id, session.payment_intent ? String(session.payment_intent) : session.id);
-            return res.redirect(`${APP_BASE_URL}/payment-result.html?status=success&booking=${encodeURIComponent(booking.booking_code)}`);
+        if (booking.status !== 'paid') {
+            if (verification.isSuccess) markBookingPaid(booking.id, verification.transactionId);
+            else markBookingCancelled(booking.id, verification.payload.message || 'MoMo payment failed');
         }
 
-        markBookingCancelled(booking.id, 'Stripe checkout not paid');
-        return res.redirect(`${APP_BASE_URL}/payment-result.html?status=failed&booking=${encodeURIComponent(booking.booking_code)}`);
+        return res.json({ resultCode: 0, message: 'success' });
     } catch (error) {
-        return res.redirect(`${APP_BASE_URL}/payment-result.html?status=error`);
+        return res.status(500).json({ resultCode: 99, message: 'internal_error' });
     }
-});
-
-app.post('/api/payments/stripe/webhook', (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    if (!paymentConfig.stripe.webhookSecret) {
-        return res.status(503).send('Webhook secret not configured');
-    }
-
-    let event;
-    try {
-        const stripe = getStripeClient();
-        event = stripe.webhooks.constructEvent(req.body, sig, paymentConfig.stripe.webhookSecret);
-    } catch (err) {
-        return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        const booking = db.prepare('SELECT * FROM bookings WHERE booking_code = ?').get(session.client_reference_id);
-        if (booking && session.payment_status === 'paid') {
-            markBookingPaid(booking.id, session.payment_intent ? String(session.payment_intent) : session.id);
-        }
-    }
-
-    if (event.type === 'checkout.session.expired') {
-        const session = event.data.object;
-        const booking = db.prepare('SELECT * FROM bookings WHERE booking_code = ?').get(session.client_reference_id);
-        if (booking) {
-            markBookingCancelled(booking.id, 'Stripe session expired');
-        }
-    }
-
-    res.json({ received: true });
 });
 
 // User booking history
@@ -1206,7 +1166,7 @@ app.get('/api/admin/stats', authenticateToken, isAdmin, (req, res) => {
 
     const newUsersWeek = db.prepare(`
         SELECT date(created_at) as day, COUNT(*) as count
-        FROM users WHERE role='customer' AND created_at >= datetime('now','-7 days')
+        FROM users WHERE role='customer' AND created_at >= datetime('now','localtime','-7 days')
         GROUP BY date(created_at) ORDER BY day ASC
     `).all();
 
@@ -1227,7 +1187,7 @@ app.get('/api/admin/stats', authenticateToken, isAdmin, (req, res) => {
     const bookingsToday = db.prepare(`
         SELECT COUNT(*) as total
         FROM bookings
-        WHERE status = 'paid' AND date(booking_time) = date('now')
+        WHERE status = 'paid' AND date(booking_time) = date('now', 'localtime')
     `).get();
 
     res.json({
@@ -1260,12 +1220,12 @@ app.get('/api/admin/stats', authenticateToken, isAdmin, (req, res) => {
         revenueThisMonth: db.prepare(`
             SELECT COALESCE(SUM(total_amount),0) as total
             FROM bookings
-            WHERE status = 'paid' AND strftime('%Y-%m', booking_time) = strftime('%Y-%m', 'now')
+            WHERE status = 'paid' AND strftime('%Y-%m', booking_time) = strftime('%Y-%m', 'now', 'localtime')
         `).get().total,
         revenueLastMonth: db.prepare(`
             SELECT COALESCE(SUM(total_amount),0) as total
             FROM bookings
-            WHERE status = 'paid' AND strftime('%Y-%m', booking_time) = strftime('%Y-%m', 'now', '-1 month')
+            WHERE status = 'paid' AND strftime('%Y-%m', booking_time) = strftime('%Y-%m', 'now', 'localtime', '-1 month')
         `).get().total,
         bookingsToday: bookingsToday.total,
         dailyMetrics,
@@ -1303,20 +1263,17 @@ app.get('/api/admin/movies', authenticateToken, isAdmin, (req, res) => {
 app.post('/api/admin/movies', authenticateToken, isAdmin, (req, res) => {
     try {
         const { title, description, poster_url, backdrop_url, trailer_url, genre, director, cast_members, duration_minutes, release_date, age_rating, status, is_featured } = req.body;
-        if (!title) return res.status(400).json({ error: "Tên phim không được để trống." });
+        const normalizedTitle = String(title || '').trim();
+        if (!normalizedTitle) return res.status(400).json({ error: "Tên phim không được để trống." });
 
-        const slug = title.toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-            .replace(/[^a-z0-9\s-]/g, '')
-            .replace(/\s+/g, '-')
-            .replace(/-+/g, '-')
-            .trim();
+        const slug = buildMovieSlug(normalizedTitle);
+        if (!slug) return res.status(400).json({ error: "Tên phim không hợp lệ để tạo slug." });
         const finalStatus = resolveMovieStatus(status, release_date || '');
 
         const result = db.prepare(`
             INSERT INTO movies (title, slug, description, poster_url, backdrop_url, trailer_url, genre, director, cast_members, duration_minutes, release_date, age_rating, status, is_featured)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(title, slug, description || '', poster_url || '', backdrop_url || '', trailer_url || '', genre || '', director || '', cast_members || '', duration_minutes || 0, release_date || '', age_rating || 'P', finalStatus, is_featured ? 1 : 0);
+        `).run(normalizedTitle, slug, description || '', poster_url || '', backdrop_url || '', trailer_url || '', genre || '', director || '', cast_members || '', duration_minutes || 0, release_date || '', age_rating || 'P', finalStatus, is_featured ? 1 : 0);
 
         res.status(201).json({ message: "Thêm phim thành công!", id: result.lastInsertRowid });
     } catch (error) {
@@ -1330,23 +1287,23 @@ app.post('/api/admin/movies', authenticateToken, isAdmin, (req, res) => {
 app.put('/api/admin/movies/:id', authenticateToken, isAdmin, (req, res) => {
     try {
         const { title, description, poster_url, backdrop_url, trailer_url, genre, director, cast_members, duration_minutes, release_date, age_rating, status, is_featured } = req.body;
-        if (!title) return res.status(400).json({ error: "Tên phim không được để trống." });
+        const normalizedTitle = String(title || '').trim();
+        if (!normalizedTitle) return res.status(400).json({ error: "Tên phim không được để trống." });
 
-        const slug = title.toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-            .replace(/[^a-z0-9\s-]/g, '')
-            .replace(/\s+/g, '-')
-            .replace(/-+/g, '-')
-            .trim();
+        const slug = buildMovieSlug(normalizedTitle);
+        if (!slug) return res.status(400).json({ error: "Tên phim không hợp lệ để tạo slug." });
         const finalStatus = resolveMovieStatus(status, release_date || '');
 
         db.prepare(`
             UPDATE movies SET title=?, slug=?, description=?, poster_url=?, backdrop_url=?, trailer_url=?, genre=?, director=?, cast_members=?, 
             duration_minutes=?, release_date=?, age_rating=?, status=?, is_featured=? WHERE id=?
-        `).run(title, slug, description || '', poster_url || '', backdrop_url || '', trailer_url || '', genre || '', director || '', cast_members || '', duration_minutes || 0, release_date || '', age_rating || 'P', finalStatus, is_featured ? 1 : 0, req.params.id);
+        `).run(normalizedTitle, slug, description || '', poster_url || '', backdrop_url || '', trailer_url || '', genre || '', director || '', cast_members || '', duration_minutes || 0, release_date || '', age_rating || 'P', finalStatus, is_featured ? 1 : 0, req.params.id);
 
         res.json({ message: "Cập nhật phim thành công!" });
     } catch (error) {
+        if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+            return res.status(400).json({ error: "Phim với tên này đã tồn tại." });
+        }
         res.status(500).json({ error: error.message });
     }
 });
@@ -1392,7 +1349,13 @@ app.post('/api/admin/snacks', authenticateToken, isAdmin, (req, res) => {
 app.put('/api/admin/snacks/:id', authenticateToken, isAdmin, (req, res) => {
     try {
         const { name, image_url, price, description } = req.body;
-        db.prepare('UPDATE snacks SET name=?, image_url=?, price=?, description=? WHERE id=?').run(name, image_url || '', price, description || '', req.params.id);
+        const normalizedName = String(name || '').trim();
+        const normalizedPrice = toPositiveNumber(price);
+        if (!normalizedName || normalizedPrice === null) {
+            return res.status(400).json({ error: "Tên và giá không hợp lệ." });
+        }
+        db.prepare('UPDATE snacks SET name=?, image_url=?, price=?, description=? WHERE id=?')
+            .run(normalizedName, image_url || '', normalizedPrice, description || '', req.params.id);
         res.json({ message: "Cập nhật combo thành công!" });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -1432,7 +1395,13 @@ app.post('/api/admin/theaters', authenticateToken, isAdmin, (req, res) => {
 app.put('/api/admin/theaters/:id', authenticateToken, isAdmin, (req, res) => {
     try {
         const { name, address, hotline } = req.body;
-        db.prepare('UPDATE theaters SET name=?, address=?, hotline=? WHERE id=?').run(name, address, hotline || '', req.params.id);
+        const normalizedName = String(name || '').trim();
+        const normalizedAddress = String(address || '').trim();
+        if (!normalizedName || !normalizedAddress) {
+            return res.status(400).json({ error: "Tên và địa chỉ rạp không được để trống." });
+        }
+        db.prepare('UPDATE theaters SET name=?, address=?, hotline=? WHERE id=?')
+            .run(normalizedName, normalizedAddress, hotline || '', req.params.id);
         res.json({ message: "Cập nhật rạp thành công!" });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -1558,9 +1527,23 @@ app.post('/api/admin/showtimes', authenticateToken, isAdmin, (req, res) => {
 app.put('/api/admin/showtimes/:id', authenticateToken, isAdmin, (req, res) => {
     try {
         const { movie_id, room_id, show_date, start_time, end_time, base_price } = req.body;
+        const normalizedMovieId = toPositiveInt(movie_id);
+        const normalizedRoomId = toPositiveInt(room_id);
+        const normalizedBasePrice = toPositiveNumber(base_price);
+        const normalizedShowDate = String(show_date || '').trim();
+        const normalizedStartTime = String(start_time || '').trim();
+        const normalizedEndTime = String(end_time || '').trim();
+
+        if (!normalizedMovieId || !normalizedRoomId || normalizedBasePrice === null || !isValidDateString(normalizedShowDate) || !isValidTimeString(normalizedStartTime)) {
+            return res.status(400).json({ error: "Dữ liệu suất chiếu không hợp lệ." });
+        }
+        if (normalizedEndTime && !isValidTimeString(normalizedEndTime)) {
+            return res.status(400).json({ error: "Giờ kết thúc không hợp lệ." });
+        }
+
         db.prepare(
             'UPDATE showtimes SET movie_id=?, room_id=?, show_date=?, start_time=?, end_time=?, base_price=? WHERE id=?'
-        ).run(movie_id, room_id, show_date, start_time, end_time || '', base_price, req.params.id);
+        ).run(normalizedMovieId, normalizedRoomId, normalizedShowDate, normalizedStartTime, normalizedEndTime, normalizedBasePrice, req.params.id);
         res.json({ message: "Cập nhật suất chiếu thành công!" });
     } catch (error) {
         res.status(500).json({ error: error.message });

@@ -845,11 +845,6 @@
    text-transform: uppercase;
 }
 .pay-badge.momo   { background: rgba(179,8,56,0.15); color: #e8647a; }
-.pay-badge.vietqr { background: rgba(237,142,0,0.15); color: #ffb84d; }
-.pay-badge.vnpay  { background: rgba(15,90,210,0.15); color: #60a5fa; }
-.pay-badge.atm    { background: rgba(15,90,210,0.15); color: #60a5fa; }
-.pay-badge.visa   { background: rgba(99,102,241,0.15); color: #818cf8; }
-.pay-badge.stripe { background: rgba(99,102,241,0.15); color: #818cf8; }
 
 /* ── Responsive ── */
 @media (max-width: 1400px) {

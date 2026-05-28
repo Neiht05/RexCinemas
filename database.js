@@ -118,7 +118,7 @@ const initSchema = () => {
             showtime_id INTEGER NOT NULL,
             total_amount REAL NOT NULL,
             booking_time TEXT DEFAULT CURRENT_TIMESTAMP,
-            status TEXT CHECK( status IN ('pending', 'paid', 'cancelled') ) DEFAULT 'paid',
+            status TEXT CHECK( status IN ('pending', 'paid', 'cancelled') ) DEFAULT 'pending',
             payment_method TEXT,
             payment_provider TEXT,
             payment_reference TEXT,
@@ -233,6 +233,52 @@ const initSchema = () => {
     migrateColumn('bookings', 'payment_session_id', 'TEXT');
     migrateColumn('bookings', 'payment_last_error', 'TEXT');
     migrateColumn('bookings', 'payment_completed_at', 'TEXT');
+
+    const migrateBookingsStatusDefault = () => {
+        const bookingColumns = db.prepare('PRAGMA table_info(bookings)').all();
+        const statusColumn = bookingColumns.find(col => col.name === 'status');
+        const statusDefault = String(statusColumn?.dflt_value || '').replace(/['"]/g, '').toLowerCase();
+        if (statusDefault !== 'paid') return;
+
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS bookings_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                booking_code TEXT UNIQUE,
+                user_id INTEGER NOT NULL,
+                showtime_id INTEGER NOT NULL,
+                total_amount REAL NOT NULL,
+                booking_time TEXT DEFAULT CURRENT_TIMESTAMP,
+                status TEXT CHECK( status IN ('pending', 'paid', 'cancelled') ) DEFAULT 'pending',
+                payment_method TEXT,
+                payment_provider TEXT,
+                payment_reference TEXT,
+                payment_transaction_id TEXT,
+                payment_session_id TEXT,
+                payment_last_error TEXT,
+                payment_completed_at TEXT,
+                FOREIGN KEY(user_id) REFERENCES users(id),
+                FOREIGN KEY(showtime_id) REFERENCES showtimes(id)
+            );
+
+            INSERT INTO bookings_new (
+                id, booking_code, user_id, showtime_id, total_amount, booking_time, status,
+                payment_method, payment_provider, payment_reference, payment_transaction_id,
+                payment_session_id, payment_last_error, payment_completed_at
+            )
+            SELECT
+                id, booking_code, user_id, showtime_id, total_amount, booking_time, status,
+                payment_method, payment_provider, payment_reference, payment_transaction_id,
+                payment_session_id, payment_last_error, payment_completed_at
+            FROM bookings;
+
+            DROP TABLE bookings;
+            ALTER TABLE bookings_new RENAME TO bookings;
+        `);
+
+        console.log("[Migration] Updated bookings.status default to 'pending'.");
+    };
+    migrateBookingsStatusDefault();
+
     db.exec(`
         CREATE INDEX IF NOT EXISTS idx_seat_holds_expires_at ON seat_holds(expires_at);
     `);
