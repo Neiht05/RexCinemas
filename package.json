@@ -1,7 +1,7 @@
 {
   "name": "rexcinemas",
   "version": "1.0.0",
-  "description": "",
+  "description": "Cinema booking website with customer checkout, MoMo payment support, and admin dashboard.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -9,7 +9,13 @@
     "seed:force": "node init_db.js --force-reset",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": [
+    "cinema",
+    "booking",
+    "express",
+    "sqlite",
+    "momo"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
