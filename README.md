@@ -2,6 +2,8 @@
 
 Rex Cinemas là website đặt vé xem phim dùng Node.js, Express và SQLite. Dự án gồm giao diện khách hàng, quy trình chọn suất chiếu/chọn ghế/đặt vé, thanh toán tiền mặt hoặc MoMo, lịch sử đặt vé, đánh giá phim và trang quản trị nội dung.
 
+Production: https://nguyenngocthien.io.vn
+
 ## Tính năng chính
 
 - Trang chủ hiển thị phim đang chiếu, phim sắp chiếu, sự kiện, tin tức và trailer/clip.
@@ -138,6 +140,14 @@ MOMO_IPN_URL=https://your-ngrok-domain.ngrok-free.app/api/payments/momo/ipn
 
 Nếu chưa cấu hình MoMo, hệ thống vẫn có thể chạy các chức năng khác và đặt vé bằng phương thức tiền mặt.
 
+Trên môi trường production hiện tại, cấu hình callback MoMo dùng domain:
+
+```env
+APP_BASE_URL=https://nguyenngocthien.io.vn
+MOMO_REDIRECT_URL=https://nguyenngocthien.io.vn/api/payments/momo/return
+MOMO_IPN_URL=https://nguyenngocthien.io.vn/api/payments/momo/ipn
+```
+
 ## Một số API chính
 
 ### Khách hàng
@@ -220,6 +230,16 @@ Khi deploy lên server thật:
 3. Chạy `npm run seed` lần đầu để tạo database nếu cần dữ liệu mẫu.
 4. Chạy ứng dụng bằng process manager như PM2 hoặc dịch vụ hosting Node.js.
 5. Cấu hình domain thật vào `APP_BASE_URL`, `MOMO_REDIRECT_URL` và `MOMO_IPN_URL` nếu dùng MoMo.
+
+Triển khai hiện tại:
+
+```text
+Domain: https://nguyenngocthien.io.vn
+WWW: https://www.nguyenngocthien.io.vn
+Server IP: 213.163.203.96
+Runtime: Node.js + PM2 + Nginx
+SSL: Let's Encrypt
+```
 
 ## Bảo mật
 
